@@ -1,6 +1,8 @@
 # encoding: utf-8
 
-[:Macro, :Builtin, :Dequote, :Splice].each do |name|
+# Wrapper types used by the reader to represent unquote (`~`) and
+# unquote-splice (`~@`) forms inside a syntax-quote.
+[:Dequote, :Splice].each do |name|
   Rouge.const_set name, Class.new {
     attr_reader :inner
 
@@ -20,12 +22,6 @@
       right.is_a?(self.class) and right.inner == @inner
     end
   }
-end
-
-class Rouge::Builtin
-  def to_s
-    "rouge.builtin/#{inner.name}"
-  end
 end
 
 # vim: set sw=2 et cc=80:

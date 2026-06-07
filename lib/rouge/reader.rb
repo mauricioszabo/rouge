@@ -7,15 +7,26 @@ class Rouge::Reader
   class EndOfDataError < StandardError; end
   class EOFError < StandardError; end
 
-  attr_accessor :ns
-
   @@gensym_counter = 0
 
-  def initialize(ns, input)
-    @ns = ns
+  def initialize(input)
     @src = input
     @n = 0
     @gensyms = []
+  end
+
+  # Read every top-level form from the input.
+  def self.read_all(input)
+    reader = new(input)
+    forms = []
+    loop do
+      begin
+        forms << reader.lex
+      rescue EOFError
+        break
+      end
+    end
+    forms
   end
 
   def lex
@@ -358,19 +369,10 @@ class Rouge::Reader
             Rouge::Symbol[
                 ("#{form.name.to_s.gsub(/(\#)$/, '')}__" \
                  "#{@gensyms[0]}__auto__").intern]]
-      elsif form.ns or form.name_s =~ /^\./ or %w(& |).include? form.name_s
-        Rouge::Seq::Cons[Rouge::Symbol[:quote], form]
-      elsif form.ns.nil?
-        begin
-          var = @ns[form.name]
-          Rouge::Seq::Cons[Rouge::Symbol[:quote],
-                      Rouge::Symbol[:"#{var.ns}/#{var.name}"]]
-        rescue Rouge::Namespace::VarNotFoundError
-          Rouge::Seq::Cons[Rouge::Symbol[:quote],
-                      Rouge::Symbol[:"#{@ns.name}/#{form.name}"]]
-        end
       else
-        raise "impossible, right?" # XXX: be bothered to ensure this is so
+        # In the transpiler we keep symbols unqualified inside syntax-quote so
+        # the emitter can still recognise special forms and core fns.
+        Rouge::Seq::Cons[Rouge::Symbol[:quote], form]
       end
     else
       Rouge::Seq::Cons[Rouge::Symbol[:quote], form]

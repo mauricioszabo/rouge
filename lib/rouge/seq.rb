@@ -174,7 +174,7 @@ module Rouge::Seq
       elsif self.length == 2 && self[0] == Rouge::Symbol[:var]
         "#'#{self[1]}"
       else
-        "(#{Rouge::Printer.print_collection(self)})"
+        "(#{to_a.map(&:to_s).join(' ')})"
       end
     end
 

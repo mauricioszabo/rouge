@@ -1,119 +1,155 @@
-# Rouge [![Build Status](https://secure.travis-ci.org/rouge-lang/rouge.png)](http://travis-ci.org/rouge-lang/rouge)
+# Rouge
 
-**Ruby + Clojure = Rouge.**
+**A Clojure-flavoured language that transpiles to readable Ruby.**
 
-Why?
+Rouge reads Clojure-style source and emits clean, indented, Rubocop-friendly
+Ruby. It is a **source-to-source transpiler**, not an interpreter — the goal is
+to remove boilerplate from Ruby code: write logic (and especially *macros*)
+once in Clojure, and let Rouge generate the repetitive Ruby.
 
-* Clojure is elegant and fun.
-* Quick boot time (currently around 0.1s).
-* Ruby's gems tend to be modern with decent APIs.
+> This is a ground-up rewrite. The original Rouge (a Clojure *interpreter* in
+> Ruby by Yuki Izumi) lives on in this project's reader, which Rouge reuses.
 
-<!-- You can try a Rouge REPL online at **[Try Rouge](http://try.rouge.io)**, or -->
+## Quick start
 
-Install the gem to get the local REPL:
+```bash
+# Transpile a file (writes foo.rb next to foo.clj)
+bin/rougec foo.clj
 
-``` bash
-gem install rouge-lang
-rouge
+# ...or print to stdout
+bin/rougec foo.clj --stdout
+
+# Run Rubocop's autocorrect over the output (when rubocop is installed)
+bin/rougec foo.clj --rubocop
+
+# Interpret (transpile-then-eval) and print the result
+bin/rougec -e '(reduce + (map inc [1 2 3]))'   # => 9
+
+# Interactive REPL (type :ruby to toggle showing emitted Ruby)
+bin/rougec --repl
 ```
 
-You'll see the `user=>` prompt.  Enjoy!
+From Ruby:
 
-You can discuss on Google Groups' [rouge-talk](https://groups.google.com/forum/#!forum/rouge-talk),
-or on `#rouge` on Freenode.
-
-## example
-
-See [boot.rg](https://github.com/rouge-lang/rouge/blob/master/lib/boot.rg),
-[em-rg](https://github.com/kivikakk/em-rg),
-[mechanize-rg](https://github.com/kivikakk/mechanize-rg), but to demonstrate
-salient features:
-
-``` clojure
-; define a macro
-(defmacro defn [name args & body]
-  `(def ~name (fn ~name ~args ~@body)))
-
-; call a Ruby method on Kernel (if the ruby namespace is referred)
-(defn require [lib]
-  (.require Kernel lib))
-
-; call a Ruby method on an Array with a block argument
-(defn reduce [f coll]
-  (.inject coll | f))
-
-; using Ruby's AMQP gem with an inline block
-(.subscribe queue {:ack true} | [metadata payload]
-  (puts (str "got a message: " payload))
-  (.ack metadata))
+```ruby
+require 'rouge'
+Rouge.transpile("(defn greet [name] (str \"hi \" name))")
+# => "def greet(name)\n  \"hi #{name}\"\nend\n"
+Rouge.eval("(+ 1 2)")  # => 3
 ```
 
-What about in Rails?
+## How it maps
 
+| Rouge                              | Ruby                              |
+| ---------------------------------- | -------------------------------- |
+| `(ns my.app.user)`                 | `module My; module App; class User` |
+| `^{:extends Base}` on the ns       | `class User < Base`              |
+| `^{:include [Comparable]}` on ns   | `include Comparable`             |
+| `(defn f [a] ...)`                 | `def f(a) ... end`               |
+| `(defn ^:self f [] ...)`           | `def self.f ... end`             |
+| `(defn- f [] ...)`                 | a `private` method               |
+| `(map f coll)`                     | `coll.map { ... }` (last arg!)   |
+| `(reduce f init coll)`             | `coll.inject(init) { ... }`      |
+| `(filter pred coll)`               | `coll.select { ... }`            |
+| `(assoc m :k v)`                   | `m.merge(k: v)`                  |
+| `(.method obj a)`                  | `obj.method(a)`                  |
+| `(Klass. a)`                       | `Klass.new(a)`                   |
+
+Sequence functions operate on their **last** argument as the Ruby receiver,
+and a function argument becomes a Ruby block.
+
+## Block parameters via metadata
+
+Mark a function argument with `^:block` to make it a Ruby block:
+
+```clojure
+(defn each-sq [coll ^:block f] (.each coll | f))
 ```
-$ rails console -- -rrouge
-Loading development environment (Rails 3.2.6)
-1.9.3p194 :002 > Rouge.repl
-user=> (.where ruby/Content {:id 1})
-  Content Load (0.7ms)  SELECT "contents".* FROM "contents" WHERE "contents"."id" = 1
-[#<Content id: 1, content_group_id: 1, name: "welcome", content: "blah blah", created_at: "2012-08-26 11:30:50", updated_at: "2012-08-26 11:50:27", order: nil>]
-user=>
+
+```ruby
+def each_sq(coll, &f)
+  coll.each(&f)
+end
 ```
 
-## TODO
+(`| x` inside an interop/call passes `x` as the block, i.e. `&x`.)
 
-See [TODO](https://github.com/rouge-lang/rouge/blob/master/misc/TODO), but big ones
-include:
+## Type hints generate better code
 
-* making seqs nicer
-* persistent datastructures everywhere
-* defprotocol
+Hint a binding (or argument) so polymorphic operations pick the right Ruby:
 
-## contributions
+```clojure
+(let [^:map m {:a 1}
+      ^:vector v [1 2 3]]
+  (conj v (count (assoc m :b 2))))
+```
 
-**Yes, please!**
+```ruby
+m = { a: 1 }
+v = [1, 2, 3]
+v + [m.merge({ b: 2 }).size]
+```
 
-* Fork the project.
-* Make your feature addition or bug fix.
-* Add tests!  This is so I don't break your lovely addition in the future by accident.
-* Commit and pull request!  (Bonus points for topic branches.)
+`conj` becomes `+` on a vector and `merge` on a map; `assoc` becomes `merge`.
+Types come from metadata (`^:map`, `^:vector`, `^:set`, `^:string`, `^{:tag X}`)
+or are inferred from literals.
 
-**Also**, if there's something in particular you want that's missing, feel free to put your vote in by [opening an Issue](https://github.com/rouge-lang/rouge/issues/new) so I know where to direct my attention.
+## Macros
 
-## authorship
+Macros are the headline feature. A `defmacro` is transpiled to a Ruby lambda,
+evaluated **in-process at transpile time**, and called with the unevaluated
+argument forms; the form it returns is transpiled in its place. Because
+expansion is plain Ruby, macros can read files, the environment, or any data
+while expanding.
 
-Original author: [Yuki Izumi](https://github.com/kivikakk).
+```clojure
+(defmacro defop [name op]
+  `(defn ~name [a b] (~op a b)))
 
-Committers:
+(defop add +)
+(defop mul *)
+```
 
-* [Joel Holdbrooks](https://github.com/noprompt)
+```ruby
+def add(a, b)
+  a + b
+end
 
-Unreserved thanks to the following people for their contributions.
+def mul(a, b)
+  a * b
+end
+```
 
-* [Russell Whitaker](https://github.com/russellwhitaker)
-* [Misha Moroshko](https://github.com/moroshko)
-* [Anthony Grimes](https://github.com/Raynes)
+## Inheritance and class mechanics
 
-## copyright and licensing
+Inheritance is metadata on the `ns` form; `include` / `extend` / `refine` are
+special forms inside the namespace body:
 
-The [MIT license](http://opensource.org/licenses/MIT).
+```clojure
+(ns ^{:extends ApplicationRecord :include [Comparable]} my.app.user)
+(refine String (defn shout [] (.upcase self)))
+```
 
-Copyright &copy; 2012&ndash;2013 Yuki Izumi
+## Interpreter / nREPL
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
+Running Rouge is **transpile-then-eval** (`Rouge::Interpreter`) — there is no
+separate evaluator, so a macro defined in a session is immediately usable by
+later forms. This is the seed for a future nREPL server, which would simply
+delegate eval ops to `Interpreter#eval_str`.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+## Development
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+```bash
+gem install rspec        # or: bundle install
+rspec                    # run the suite
+```
+
+## Authorship
+
+Maintained by [Maurício Szabo](https://github.com/mauricioszabo). The Clojure
+reader is reused from the original Rouge by
+[Yuki Izumi](https://github.com/kivikakk) and contributors.
+
+## License
+
+The [MIT license](http://opensource.org/licenses/MIT). See `LICENSE`.

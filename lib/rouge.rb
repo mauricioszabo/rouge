@@ -1,54 +1,36 @@
 # encoding: utf-8
 
-if RUBY_VERSION < "1.9"
-  STDERR.puts "Rouge will probably not run on anything less than Ruby 1.9."
-end
-
+# Rouge: a Clojure-flavoured language that *transpiles* to readable Ruby.
 module Rouge
+  require 'set'
+
   require 'rouge/version'
   require 'rouge/wrappers'
+  require 'rouge/metadata'
   require 'rouge/symbol'
   require 'rouge/seq'
   require 'rouge/reader'
-  require 'rouge/printer'
-  require 'rouge/context'
-  require 'rouge/repl'
-  require 'set'
 
-  def self.print(form, out)
-    Rouge::Printer.print form, out
+  require 'rouge/ruby_ast'
+  require 'rouge/pretty_printer'
+  require 'rouge/env'
+  require 'rouge/form_runtime'
+  require 'rouge/emitter'
+  require 'rouge/special_forms'
+  require 'rouge/core'
+  require 'rouge/macro'
+  require 'rouge/formatter'
+  require 'rouge/transpiler'
+  require 'rouge/interpreter'
+
+  # Transpile a string of Rouge source into Ruby source.
+  def self.transpile(source, rubocop: false)
+    Rouge::Transpiler.transpile(source, rubocop: rubocop)
   end
 
-  def self.[](ns)
-    Rouge::Namespace[ns]
-  end
-
-  def self.boot!
-    return if @booted
-    @booted = true
-
-    builtin = Rouge[:"rouge.builtin"]
-
-    core = Rouge[:"rouge.core"]
-    core.refer builtin
-    core.set_here(:"*command-line-args*", ARGV)
-
-    user = Rouge[:user]
-    user.refer builtin
-    user.refer core
-    user.refer Rouge[:ruby]
-
-    boot_rg = File.read(Rouge.relative_to_lib('boot.rg'))
-    Rouge::Context.new(user).readeval(boot_rg)
-  end
-
-  def self.repl(options = {})
-    boot!
-    Rouge::REPL.run!(options)
-  end
-
-  def self.relative_to_lib name
-    File.join(File.dirname(File.absolute_path(__FILE__)), name)
+  # Transpile-then-eval a string of Rouge source, returning the last value.
+  def self.eval(source)
+    Rouge::Interpreter.new.eval_str(source)
   end
 end
 
