@@ -495,6 +495,8 @@ class Rouge::Reader
         {meta => true}
       when String
         {:tag => meta}
+      when Rouge::Symbol
+        {:tag => meta}
       else
         meta
       end

@@ -56,6 +56,8 @@ module Rouge
         Lit.new("false")
       when nil
         Lit.new("nil")
+      when Rouge::BlockArg
+        raise Error, "a ^:block argument can only be spliced into call position"
       else
         raise Error, "can't emit #{form.inspect} (#{form.class})"
       end
@@ -164,6 +166,12 @@ module Rouge
                         @env.munge_method(name), emit_args(tail))
       end
 
+      # Type-dispatched syntaxes (defsyntax / defimpl) win over the core table,
+      # so the prelude (or a user) can take over names like +map+ / +reduce+.
+      if head.ns.nil? && @env.syntax?(name) && !@env.local?(full)
+        return expand_syntax(name, tail)
+      end
+
       # Interop: (.method recv args...)
       if name.start_with?(".") && name.length > 1
         return emit_interop(name[1..], tail)
@@ -211,9 +219,9 @@ module Rouge
     def emit_interop(method, tail)
       recv = emit(tail[0])
       rest = tail[1..]
-      block_pass, args = extract_block_pass(rest)
+      block, block_pass, args = extract_block(rest)
       Call.new(recv, @env.munge_method(method), emit_args(args),
-               block_pass: block_pass)
+               block: block, block_pass: block_pass)
     end
 
     def emit_qualified_call(head, tail)
@@ -232,6 +240,38 @@ module Rouge
 
       bp = args[idx + 1]
       [emit(bp), args[0...idx]]
+    end
+
+    # Pull a block out of an argument list, recognising both a +BlockArg+
+    # (spliced by a +defimpl+ +^:block+ param) and the +| f+ marker.  Returns
+    # [block_node_or_nil, block_pass_node_or_nil, remaining_arg_forms].
+    def extract_block(args)
+      bidx = args.find_index { |a| a.is_a?(Rouge::BlockArg) }
+      if bidx
+        ba = args[bidx]
+        block, block_pass = coerce_block(ba.inner, ba.arity)
+        return [block, block_pass, args[0...bidx] + args[(bidx + 1)..]]
+      end
+
+      pidx = args.find_index { |a| a.is_a?(Rouge::Symbol) && a.name_s == "|" }
+      return [nil, emit(args[pidx + 1]), args[0...pidx]] if pidx
+
+      [nil, nil, args]
+    end
+
+    # Coerce a function form destined for a Ruby block: a bound local or keyword
+    # is passed with +&+, anything else is wrapped in an +arity+-param block
+    # (mirrors +seq_op+).  Returns [block_node_or_nil, block_pass_node_or_nil].
+    def coerce_block(form, arity)
+      # A multi-param block (e.g. mapping over zipped tuples) must destructure,
+      # so only pass-through (+&local+ / +&:kw+) when a single param suffices.
+      if arity <= 1 && form.is_a?(Rouge::Symbol) && @env.local?(form.to_s)
+        [nil, Lit.new(@env.lookup_local(form.to_s).ruby_name)]
+      elsif arity <= 1 && form.is_a?(::Symbol)
+        [nil, emit_keyword(form)]
+      else
+        [fn_to_block(form, arity), nil]
+      end
     end
 
     # ---- type hints -------------------------------------------------------

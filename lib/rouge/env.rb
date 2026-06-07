@@ -13,12 +13,24 @@ module Rouge
   class Env
     Binding = Struct.new(:ruby_name, :type)
 
-    attr_accessor :current_ns
-    attr_reader :macros
+    # A type-dispatched syntax (see +syntax.rb+).  +dispatch+ is a callable that
+    # maps the call's argument forms to a dispatch token; +impls+ maps a
+    # normalized token (+:default+/+:missing+/+:vararg+ or a type symbol) to a
+    # list of arity-specific implementations.
+    Syntax = Struct.new(:dispatch, :impls)
 
-    def initialize
+    # One arity of one +defimpl+.  +callable+ builds a form from the argument
+    # forms; +fixed+ is the number of fixed params; +variadic+ is true when it
+    # has a +&+ rest; +block_params+ maps a param index to its block arity.
+    Impl = Struct.new(:callable, :fixed, :variadic, :block_params)
+
+    attr_accessor :current_ns
+    attr_reader :macros, :syntaxes
+
+    def initialize(load_syntaxes: true)
       @scopes = [{}]
       @macros = {}
+      @syntaxes = load_syntaxes ? Rouge.default_syntaxes_copy : {}
       @gensym_counter = 0
       @current_ns = nil
     end
@@ -76,6 +88,26 @@ module Rouge
 
     def macro?(name)
       @macros.key?(name.to_s)
+    end
+
+    # ---- syntaxes ---------------------------------------------------------
+
+    def define_syntax(name, dispatch)
+      syn = (@syntaxes[name.to_s] ||= Syntax.new(nil, {}))
+      syn.dispatch = dispatch
+    end
+
+    def add_syntax_impl(name, token, impl)
+      syn = (@syntaxes[name.to_s] ||= Syntax.new(nil, {}))
+      (syn.impls[token] ||= []) << impl
+    end
+
+    def syntax(name)
+      @syntaxes[name.to_s]
+    end
+
+    def syntax?(name)
+      @syntaxes.key?(name.to_s)
     end
 
     # ---- gensym -----------------------------------------------------------

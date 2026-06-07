@@ -11,7 +11,7 @@ module Rouge
   class Emitter
     # Function-builder names available inside macro bodies (mapped to
     # +Rouge::FormRuntime+).
-    FORM_FNS = %w[list concat seq cons vector gensym symbol].freeze
+    FORM_FNS = %w[list concat seq cons vector gensym symbol type-of as-block].freeze
 
     def form_fn?(name)
       FORM_FNS.include?(name)

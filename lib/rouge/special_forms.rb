@@ -4,9 +4,10 @@
 module Rouge
   class Emitter
     SPECIAL_FORMS = %w[
-      def defn defn- def- defmacro fn fn* let let* if when when-not unless
-      cond case do quote var and or not -> ->> when-let if-let throw try
-      set! comment declare include extend refine apply new dotimes doseq
+      def defn defn- def- defmacro defsyntax defimpl fn fn* let let* if when
+      when-not unless cond case do quote var and or not -> ->> .. when-let
+      if-let throw try set! comment declare include extend refine apply new
+      dotimes doseq
     ].freeze
 
     def special_form?(name)
@@ -20,6 +21,8 @@ module Rouge
       when "defn"            then emit_defn(tail, private: false)
       when "defn-"           then emit_defn(tail, private: true)
       when "defmacro"        then emit_defmacro(tail)
+      when "defsyntax"       then emit_defsyntax(tail)
+      when "defimpl"         then emit_defimpl(tail)
       when "fn", "fn*"       then emit_fn(tail)
       when "let", "let*"     then emit_let(tail)
       when "if"              then emit_if(tail)
@@ -35,6 +38,7 @@ module Rouge
       when "not"             then Unop.new("!", emit(tail[0]))
       when "->"              then emit(thread_first(tail))
       when "->>"             then emit(thread_last(tail))
+      when ".."              then emit_dotdot(tail)
       when "when-let"        then emit_when_let(tail)
       when "if-let"          then emit_if_let(tail)
       when "throw"           then Call.new(nil, "raise", emit_args(tail))
@@ -308,8 +312,34 @@ module Rouge
       Call.new(nil, "refine", [klass], block: block)
     end
 
+    # Interop threading: +(.. recv s1 s2 ...)+ where each step is a method name
+    # or +(method args...)+, applied left-to-right.
+    #   (.. obj to-h (map f)) => obj.to_h.map(&f)
+    def emit_dotdot(tail)
+      acc = tail[0]
+      tail[1..].each do |step|
+        acc =
+          if step.is_a?(Rouge::Seq::Cons) || step.is_a?(Rouge::Seq::ISeq)
+            a = step.to_a
+            Rouge::Seq::Cons[Rouge::Symbol[:".#{a[0].name_s}"], acc, *a[1..]]
+          else
+            Rouge::Seq::Cons[Rouge::Symbol[:".#{step.name_s}"], acc]
+          end
+      end
+      emit(acc)
+    end
+
     def emit_apply(tail)
       f = tail[0]
+
+      # (apply syntax args... lastseq): the collection's type can't be known
+      # statically, so route through the syntax's :vararg impl.
+      if f.is_a?(Rouge::Symbol) && f.ns.nil? && @mode != :macro &&
+         @env.syntax?(f.name_s) && !@env.local?(f.to_s)
+        middle = tail[1..-2] || []
+        return expand_syntax(f.name_s, middle + [tail[-1]], via_apply: true)
+      end
+
       mid = tail[1..-2] || []
       last = tail[-1]
       args = emit_args(mid)

@@ -6,7 +6,28 @@ module Rouge
   # form-builder fns they use (+list+, +concat+, syntax-quote's +seq+, ...)
   # resolve to these methods, which construct reader data (Cons/Symbol).
   module FormRuntime
+    # The emitter currently expanding a +defsyntax+ dispatch fn / +defimpl+
+    # body.  Lets transpile-time introspection (+type-of+) reach the live
+    # environment.  Set/restored around expansion by the emitter.
+    class << self
+      attr_accessor :emitter
+    end
+
     module_function
+
+    # The static type token the active emitter attributes to a form.  Used by a
+    # +defsyntax+ dispatch fn, e.g. +(defsyntax map (fn [f coll] (type-of coll)))+.
+    def type_of(form)
+      Rouge::FormRuntime.emitter.type_of(form)
+    end
+
+    # Mark a function form so the emitter lowers it to an +arity+-param Ruby
+    # block.  Lets a +defimpl+ body request block coercion with an arity it
+    # computes at expansion (e.g. one block param per collection in a parallel
+    # +map+).
+    def as_block(form, arity = 1)
+      Rouge::BlockArg[form, arity]
+    end
 
     def list(*xs)
       Rouge::Seq::Cons[*xs]
