@@ -23,6 +23,11 @@ parser = OptionParser.new do |o|
     options[:file] = f
   end
   o.on("--repl", "Start an interactive transpile-then-eval REPL") { options[:mode] = :repl }
+  o.on("--compile", "Compile the whole project (per rouge.edn) to plain Ruby") { options[:mode] = :compile }
+  o.on("--nrepl [PORT]", Integer, "Start a bencode nREPL server (default port 7888)") do |p|
+    options[:mode] = :nrepl
+    options[:port] = p || 7888
+  end
   o.on("-h", "--help", "Show this help") do
     puts o
     exit
@@ -60,6 +65,13 @@ when :repl
       warn "#{e.class}: #{e.message}"
     end
   end
+when :compile
+  written = Rouge::Compiler.new(Rouge::Config.load(Dir.pwd)).compile_all
+  written.each { |w| warn "Compiled #{w}" }
+  warn "Compiled #{written.length} file(s)."
+when :nrepl
+  require 'rouge/nrepl/server'
+  Rouge::Nrepl::Server.new(config: Rouge::Config.load(Dir.pwd), port: options[:port]).start
 when :stdout
   source = ARGF.read
   print Rouge::Transpiler.transpile(source, rubocop: options[:rubocop])

@@ -17,11 +17,12 @@ module Rouge
     CORE_NS = %w[clojure.core clojure.string clojure.set rouge.core].freeze
 
     attr_reader :env
-    attr_accessor :mode
+    attr_accessor :mode, :loader
 
     def initialize(env = Rouge::Env.new)
       @env = env
       @mode = :code # :code for ordinary output, :macro inside macro bodies
+      @loader = nil
     end
 
     # Emit a single form as a Ruby *expression* node.
@@ -114,15 +115,21 @@ module Rouge
       end
     end
 
-    # +Foo/BAR+ => +Foo::BAR+ ;  +Foo/bar+ => +Foo.bar+.
+    # +Foo/BAR+ => +Foo::BAR+ ;  +Foo/bar+ => +Foo.bar+.  A namespace that
+    # matches a +:require+ alias resolves to the aliased const path.
     def emit_qualified_value(sym)
       ns = sym.ns_s
       name = sym.name_s
       if name =~ /\A[A-Z]/
-        ConstPath.new("#{const_path(ns)}::#{name}")
+        ConstPath.new("#{resolve_ns_path(ns)}::#{name}")
       else
-        Call.new(ConstPath.new(const_path(ns)), @env.munge_method(name))
+        Call.new(ConstPath.new(resolve_ns_path(ns)), @env.munge_method(name))
       end
+    end
+
+    # Resolve a namespace segment to a Ruby const path, honouring require aliases.
+    def resolve_ns_path(ns)
+      @env.alias_const(ns) || const_path(ns)
     end
 
     def const_path(ns)
@@ -172,6 +179,11 @@ module Rouge
         return expand_syntax(name, tail)
       end
 
+      # A name brought in unqualified by (:require ... :refer [...]).
+      if head.ns.nil? && @env.refer?(name) && !@env.local?(full)
+        return emit_refer_call(name, tail)
+      end
+
       # Interop: (.method recv args...)
       if name.start_with?(".") && name.length > 1
         return emit_interop(name[1..], tail)
@@ -182,6 +194,12 @@ module Rouge
         klass = name[0..-2]
         return Call.new(ConstPath.new(const_path_for(head.ns, klass)), "new",
                         emit_args(tail))
+      end
+
+      # A require alias resolves before core-ns routing, so the alias is
+      # deterministic (e.g. (str/foo) where str is an alias, not clojure.string).
+      if head.ns && @env.alias?(head.ns_s)
+        return emit_qualified_call(head, tail)
       end
 
       # Qualified call into a Clojure-ish core namespace maps through the core
@@ -228,7 +246,14 @@ module Rouge
       ns = head.ns_s
       name = head.name_s
       block_pass, args = extract_block_pass(tail)
-      Call.new(ConstPath.new(const_path(ns)), @env.munge_method(name),
+      Call.new(ConstPath.new(resolve_ns_path(ns)), @env.munge_method(name),
+               emit_args(args), block_pass: block_pass)
+    end
+
+    # A bare name brought in by +:refer+ resolves to a call on its namespace.
+    def emit_refer_call(name, tail)
+      block_pass, args = extract_block_pass(tail)
+      Call.new(ConstPath.new(@env.refer_const(name)), @env.munge_method(name),
                emit_args(args), block_pass: block_pass)
     end
 

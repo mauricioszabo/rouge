@@ -24,7 +24,7 @@ module Rouge
     # has a +&+ rest; +block_params+ maps a param index to its block arity.
     Impl = Struct.new(:callable, :fixed, :variadic, :block_params)
 
-    attr_accessor :current_ns
+    attr_accessor :current_ns, :module_ns
     attr_reader :macros, :syntaxes
 
     def initialize(load_syntaxes: true)
@@ -33,6 +33,9 @@ module Rouge
       @syntaxes = load_syntaxes ? Rouge.default_syntaxes_copy : {}
       @gensym_counter = 0
       @current_ns = nil
+      @module_ns = false
+      @aliases = {}
+      @refers = {}
     end
 
     # ---- scopes -----------------------------------------------------------
@@ -108,6 +111,54 @@ module Rouge
 
     def syntax?(name)
       @syntaxes.key?(name.to_s)
+    end
+
+    # ---- require aliases / refers -----------------------------------------
+    #
+    # Lexical resolution data for the *current* namespace.  +aliases+ maps an
+    # alias (e.g. "o") to a Ruby const path ("Other::Ns"); +refers+ maps a bare
+    # name to the const path of the namespace that owns it.  Both are reset at
+    # each +(ns ...)+ boundary so they never leak across files (important: the
+    # compiler reuses one Env across the whole project).
+
+    def reset_ns_resolution
+      @aliases = {}
+      @refers = {}
+      @module_ns = false
+    end
+
+    # Snapshot/restore the current-namespace resolution state, so loading a
+    # dependency mid-namespace doesn't clobber the requiring namespace's aliases.
+    def ns_snapshot
+      [@aliases.dup, @refers.dup, @module_ns, @current_ns]
+    end
+
+    def restore_ns(snap)
+      @aliases, @refers, @module_ns, @current_ns = snap
+    end
+
+    def define_alias(name, const_path)
+      @aliases[name.to_s] = const_path
+    end
+
+    def alias?(name)
+      @aliases.key?(name.to_s)
+    end
+
+    def alias_const(name)
+      @aliases[name.to_s]
+    end
+
+    def define_refer(name, const_path)
+      @refers[name.to_s] = const_path
+    end
+
+    def refer?(name)
+      @refers.key?(name.to_s)
+    end
+
+    def refer_const(name)
+      @refers[name.to_s]
     end
 
     # ---- gensym -----------------------------------------------------------

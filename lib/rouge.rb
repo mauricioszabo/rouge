@@ -20,8 +20,12 @@ module Rouge
   require 'rouge/core'
   require 'rouge/macro'
   require 'rouge/syntax'
+  require 'rouge/config'
+  require 'rouge/ns_form'
+  require 'rouge/loader'
   require 'rouge/formatter'
   require 'rouge/transpiler'
+  require 'rouge/compiler'
   require 'rouge/interpreter'
 
   PRELUDE_PATH = File.expand_path('rouge/prelude.clj', __dir__).freeze

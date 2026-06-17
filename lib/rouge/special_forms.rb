@@ -75,7 +75,9 @@ module Rouge
       rest = rest[1..] if rest[0].is_a?(::Hash)           # attr-map
 
       meta = name_sym.respond_to?(:meta) ? (name_sym.meta || {}) : {}
-      singleton = !!(meta[:self] || meta[:class] || meta[:static])
+      # A module-flavoured namespace makes top-level defns module functions, so
+      # they're callable cross-namespace as +Some::Ns.foo+.
+      singleton = !!(meta[:self] || meta[:class] || meta[:static] || @env.module_ns)
       visibility = (private || meta[:private]) ? :private : nil
       mname = @env.munge_method(name_sym.name_s)
 
