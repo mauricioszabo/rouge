@@ -26,7 +26,7 @@ describe Rouge::Compiler do
     CLJ
     write(@dir, "src/app.rg", <<~CLJ)
       (ns app
-        (:require [util.math :as m :refer [square]]
+        (:require [util.math :as m :refer [square double]]
                   [set :as s]))
       (defn demo [n] (+ (m/square n) (square n) (double 5)))
     CLJ
@@ -38,7 +38,7 @@ describe Rouge::Compiler do
     expect(app).to include('require_relative "util/math"')
     expect(app).to include('require "set"')
     expect(app).to include("Util::Math.square(n)")  # both alias and refer
-    expect(app).to include("2 * 5")                  # macro expanded at compile time
+    expect(app).to include("2 * 5")                  # refer'd macro expanded at compile time
   end
 
   it "produces output free of any Rouge runtime reference" do

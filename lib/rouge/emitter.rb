@@ -129,7 +129,12 @@ module Rouge
 
     # Resolve a namespace segment to a Ruby const path, honouring require aliases.
     def resolve_ns_path(ns)
-      @env.alias_const(ns) || const_path(ns)
+      const_path(@env.alias?(ns) ? @env.alias_ns(ns) : ns)
+    end
+
+    # The namespace name a head symbol's prefix denotes (resolving an alias).
+    def resolved_ns_name(ns)
+      @env.alias?(ns) ? @env.alias_ns(ns) : ns
     end
 
     def const_path(ns)
@@ -196,6 +201,13 @@ module Rouge
                         emit_args(tail))
       end
 
+      # Qualified macro call: (other.ns/mac ...) or aliased (x/mac ...), when the
+      # resolved namespace defines that macro.  Honours :require scoping.
+      if head.ns && !head.new_sym
+        mns = resolved_ns_name(head.ns_s)
+        return emit(expand_macro_in(mns, name, tail)) if @env.macro_in?(mns, name)
+      end
+
       # A require alias resolves before core-ns routing, so the alias is
       # deterministic (e.g. (str/foo) where str is an alias, not clojure.string).
       if head.ns && @env.alias?(head.ns_s)
@@ -253,7 +265,7 @@ module Rouge
     # A bare name brought in by +:refer+ resolves to a call on its namespace.
     def emit_refer_call(name, tail)
       block_pass, args = extract_block_pass(tail)
-      Call.new(ConstPath.new(@env.refer_const(name)), @env.munge_method(name),
+      Call.new(ConstPath.new(const_path(@env.refer_ns(name))), @env.munge_method(name),
                emit_args(args), block_pass: block_pass)
     end
 

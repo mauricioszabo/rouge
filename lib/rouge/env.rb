@@ -36,6 +36,7 @@ module Rouge
       @module_ns = false
       @aliases = {}
       @refers = {}
+      @refer_all = []
     end
 
     # ---- scopes -----------------------------------------------------------
@@ -80,17 +81,51 @@ module Rouge
     end
 
     # ---- macros -----------------------------------------------------------
+    #
+    # Macros are scoped to the namespace that defines them (keyed by ns name).
+    # An unqualified macro call resolves against the current namespace and any
+    # names brought in by +:require ... :refer+; a qualified call resolves
+    # against the named (or aliased) namespace.  This mirrors Clojure: a macro
+    # is only usable where it was defined or explicitly required.
 
-    def define_macro(name, callable)
-      @macros[name.to_s] = callable
+    DEFAULT_NS = "user".freeze
+
+    def current_ns_key
+      @current_ns || DEFAULT_NS
     end
 
+    def define_macro(name, callable)
+      (@macros[current_ns_key] ||= {})[name.to_s] = callable
+    end
+
+    # Look up a macro callable visible *unqualified* in the current namespace:
+    # one defined here, one :refer'd by name, or one from a :refer :all ns.
     def macro(name)
-      @macros[name.to_s]
+      key = name.to_s
+      own = @macros.dig(current_ns_key, key)
+      return own if own
+
+      ref_ns = @refers[key]
+      return @macros.dig(ref_ns, key) if ref_ns && @macros.dig(ref_ns, key)
+
+      @refer_all.each do |ns|
+        found = @macros.dig(ns, key)
+        return found if found
+      end
+      nil
     end
 
     def macro?(name)
-      @macros.key?(name.to_s)
+      !macro(name).nil?
+    end
+
+    # Look up a macro defined in a specific (already-resolved) namespace.
+    def macro_in(ns_name, name)
+      @macros.dig(ns_name, name.to_s)
+    end
+
+    def macro_in?(ns_name, name)
+      !macro_in(ns_name, name).nil?
     end
 
     # ---- syntaxes ---------------------------------------------------------
@@ -116,49 +151,56 @@ module Rouge
     # ---- require aliases / refers -----------------------------------------
     #
     # Lexical resolution data for the *current* namespace.  +aliases+ maps an
-    # alias (e.g. "o") to a Ruby const path ("Other::Ns"); +refers+ maps a bare
-    # name to the const path of the namespace that owns it.  Both are reset at
-    # each +(ns ...)+ boundary so they never leak across files (important: the
-    # compiler reuses one Env across the whole project).
+    # alias (e.g. "o") to a namespace name ("other.ns"); +refers+ maps a bare
+    # name to the namespace that owns it.  Storing the namespace name (not a
+    # Ruby const path) lets the emitter both compute the const path AND resolve
+    # referred/qualified macros.  Both tables reset at each +(ns ...)+ boundary
+    # so they never leak across files (the compiler reuses one Env project-wide).
 
     def reset_ns_resolution
       @aliases = {}
       @refers = {}
+      @refer_all = []
       @module_ns = false
     end
 
     # Snapshot/restore the current-namespace resolution state, so loading a
     # dependency mid-namespace doesn't clobber the requiring namespace's aliases.
     def ns_snapshot
-      [@aliases.dup, @refers.dup, @module_ns, @current_ns]
+      [@aliases.dup, @refers.dup, @refer_all.dup, @module_ns, @current_ns]
     end
 
     def restore_ns(snap)
-      @aliases, @refers, @module_ns, @current_ns = snap
+      @aliases, @refers, @refer_all, @module_ns, @current_ns = snap
     end
 
-    def define_alias(name, const_path)
-      @aliases[name.to_s] = const_path
+    def define_alias(name, ns_name)
+      @aliases[name.to_s] = ns_name
     end
 
     def alias?(name)
       @aliases.key?(name.to_s)
     end
 
-    def alias_const(name)
+    def alias_ns(name)
       @aliases[name.to_s]
     end
 
-    def define_refer(name, const_path)
-      @refers[name.to_s] = const_path
+    def define_refer(name, ns_name)
+      @refers[name.to_s] = ns_name
     end
 
     def refer?(name)
       @refers.key?(name.to_s)
     end
 
-    def refer_const(name)
+    def refer_ns(name)
       @refers[name.to_s]
+    end
+
+    # +:refer :all+ — make every macro in +ns_name+ visible unqualified.
+    def define_refer_all(ns_name)
+      @refer_all << ns_name unless @refer_all.include?(ns_name)
     end
 
     # ---- gensym -----------------------------------------------------------

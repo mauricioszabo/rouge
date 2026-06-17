@@ -46,6 +46,11 @@ module Rouge
     def expand_macro(name, arg_forms)
       @env.macro(name).call(*arg_forms)
     end
+
+    # Expand a macro resolved to a specific namespace (qualified/aliased call).
+    def expand_macro_in(ns_name, name, arg_forms)
+      @env.macro_in(ns_name, name).call(*arg_forms)
+    end
   end
 end
 

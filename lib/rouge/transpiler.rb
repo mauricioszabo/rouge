@@ -118,10 +118,11 @@ module Rouge
     end
 
     def register_resolution(spec)
-      const = @emitter.const_path(spec.ns)
-      @env.define_alias(spec.as, const) if spec.as
-      Array(spec.refer == :all ? nil : spec.refer).each do |name|
-        @env.define_refer(name, const)
+      @env.define_alias(spec.as, spec.ns) if spec.as
+      if spec.refer == :all
+        @env.define_refer_all(spec.ns)
+      else
+        Array(spec.refer).each { |name| @env.define_refer(name, spec.ns) }
       end
     end
 

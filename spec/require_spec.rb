@@ -35,6 +35,54 @@ describe "namespaces, require, aliases" do
     end
   end
 
+  describe "per-namespace macro scope" do
+    # One Env across both files, so we can observe cross-namespace visibility.
+    def transpile_files(*sources)
+      env = Rouge::Env.new
+      t = Rouge::Transpiler.new(env)
+      sources.map { |s| t.transpile(s) }
+    end
+
+    it "expands a macro defined in the same namespace" do
+      ruby = transpile("(ns a)\n(defmacro twice [x] `(* 2 ~x))\n(defn f [n] (twice n))")
+      expect(ruby).to include("2 * n")
+    end
+
+    it "does NOT expand a macro from another namespace that wasn't required" do
+      _a, b = transpile_files(
+        "(ns a)\n(defmacro twice [x] `(* 2 ~x))",
+        "(ns b)\n(defn f [n] (twice n))"
+      )
+      # Unrequired: 'twice' is not a macro here, so it stays a plain call.
+      expect(b).to include("twice(n)")
+      expect(b).not_to include("2 * n")
+    end
+
+    it "expands a macro brought in unqualified via :refer" do
+      _a, b = transpile_files(
+        "(ns a)\n(defmacro twice [x] `(* 2 ~x))",
+        "(ns b (:require [a :refer [twice]]))\n(defn f [n] (twice n))"
+      )
+      expect(b).to include("2 * n")
+    end
+
+    it "expands a macro called qualified (aliased) without :refer" do
+      _a, b = transpile_files(
+        "(ns a)\n(defmacro twice [x] `(* 2 ~x))",
+        "(ns b (:require [a :as a]))\n(defn f [n] (a/twice n))"
+      )
+      expect(b).to include("2 * n")
+    end
+
+    it "supports :refer :all for macros" do
+      _a, b = transpile_files(
+        "(ns a)\n(defmacro twice [x] `(* 2 ~x))",
+        "(ns b (:require [a :refer :all]))\n(defn f [n] (twice n))"
+      )
+      expect(b).to include("2 * n")
+    end
+  end
+
   describe "module-flavoured namespaces" do
     it "emits a module whose defns are module functions" do
       expect(transpile("(ns ^:module util.math)\n(defn square [n] (* n n))")).to eq <<~RUBY
