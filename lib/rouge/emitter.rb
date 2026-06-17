@@ -201,11 +201,12 @@ module Rouge
                         emit_args(tail))
       end
 
-      # Qualified macro call: (other.ns/mac ...) or aliased (x/mac ...), when the
-      # resolved namespace defines that macro.  Honours :require scoping.
+      # Qualified macro/syntax call: (other.ns/m ...) or aliased (x/m ...), when
+      # the resolved namespace defines it.  Honours :require scoping.
       if head.ns && !head.new_sym
         mns = resolved_ns_name(head.ns_s)
         return emit(expand_macro_in(mns, name, tail)) if @env.macro_in?(mns, name)
+        return expand_syntax_in(mns, name, tail) if @env.syntax_in?(mns, name)
       end
 
       # A require alias resolves before core-ns routing, so the alias is

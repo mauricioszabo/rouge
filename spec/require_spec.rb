@@ -83,6 +83,54 @@ describe "namespaces, require, aliases" do
     end
   end
 
+  describe "per-namespace syntax scope" do
+    def transpile_files(*sources)
+      env = Rouge::Env.new
+      t = Rouge::Transpiler.new(env)
+      sources.map { |s| t.transpile(s) }
+    end
+
+    SYN = "(defsyntax dbl (fn [x] (type-of x)))\n(defimpl dbl :default [x] `(* ~x 2))".freeze
+
+    it "expands a syntax defined in the same namespace" do
+      expect(transpile("(ns a)\n#{SYN}\n(defn f [n] (dbl n))")).to include("n * 2")
+    end
+
+    it "does NOT expand a syntax from another namespace that wasn't required" do
+      _a, b = transpile_files("(ns a)\n#{SYN}", "(ns b)\n(defn f [n] (dbl n))")
+      expect(b).to include("dbl(n)")
+      expect(b).not_to include("n * 2")
+    end
+
+    it "expands a :refer'd syntax unqualified" do
+      _a, b = transpile_files("(ns a)\n#{SYN}",
+                              "(ns b (:require [a :refer [dbl]]))\n(defn f [n] (dbl n))")
+      expect(b).to include("n * 2")
+    end
+
+    it "expands an aliased/qualified syntax" do
+      _a, b = transpile_files("(ns a)\n#{SYN}",
+                              "(ns b (:require [a :as a]))\n(defn f [n] (a/dbl n))")
+      expect(b).to include("n * 2")
+    end
+
+    it "keeps core syntaxes (map/reduce) visible in every namespace without require" do
+      ruby = transpile("(ns anything)\n(defn f [xs] (reduce + (map inc xs)))")
+      expect(ruby).to include("xs.map")
+      expect(ruby).to include(".inject")
+    end
+
+    it "lets a namespace override a core syntax locally without affecting others" do
+      _a, b = transpile_files(
+        "(ns a)\n(defsyntax map (fn [f c] (type-of c)))\n" \
+          "(defimpl map :default [^:block f c] `(.collect ~c ~f))\n(defn g [xs] (map inc xs))",
+        "(ns b)\n(defn h [xs] (map inc xs))"
+      )
+      expect(_a).to include("xs.collect")   # a's own map wins in a
+      expect(b).to include("xs.map")        # b still sees core map
+    end
+  end
+
   describe "module-flavoured namespaces" do
     it "emits a module whose defns are module functions" do
       expect(transpile("(ns ^:module util.math)\n(defn square [n] (* n n))")).to eq <<~RUBY

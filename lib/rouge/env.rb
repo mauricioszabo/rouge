@@ -129,23 +129,56 @@ module Rouge
     end
 
     # ---- syntaxes ---------------------------------------------------------
+    #
+    # Like macros, +defsyntax+/+defimpl+ are scoped to their defining namespace
+    # and resolved via the current ns, +:refer+/+:refer :all+, then the always
+    # visible core namespace (where the prelude's +map+/+reduce+ live, so they
+    # behave like +clojure.core+ — referred everywhere automatically).
+
+    # The namespace holding the prelude syntaxes, auto-referred in every ns.
+    CORE_SYNTAX_NS = "rouge.core".freeze
 
     def define_syntax(name, dispatch)
-      syn = (@syntaxes[name.to_s] ||= Syntax.new(nil, {}))
+      syn = (ns_syntaxes(current_ns_key)[name.to_s] ||= Syntax.new(nil, {}))
       syn.dispatch = dispatch
     end
 
     def add_syntax_impl(name, token, impl)
-      syn = (@syntaxes[name.to_s] ||= Syntax.new(nil, {}))
+      syn = (ns_syntaxes(current_ns_key)[name.to_s] ||= Syntax.new(nil, {}))
       (syn.impls[token] ||= []) << impl
     end
 
+    # The syntax visible *unqualified* in the current namespace.
     def syntax(name)
-      @syntaxes[name.to_s]
+      key = name.to_s
+      own = @syntaxes.dig(current_ns_key, key)
+      return own if own
+
+      ref_ns = @refers[key]
+      return @syntaxes.dig(ref_ns, key) if ref_ns && @syntaxes.dig(ref_ns, key)
+
+      @refer_all.each do |ns|
+        found = @syntaxes.dig(ns, key)
+        return found if found
+      end
+      @syntaxes.dig(CORE_SYNTAX_NS, key)
     end
 
     def syntax?(name)
-      @syntaxes.key?(name.to_s)
+      !syntax(name).nil?
+    end
+
+    # A syntax defined in a specific (already-resolved) namespace.
+    def syntax_in(ns_name, name)
+      @syntaxes.dig(ns_name, name.to_s)
+    end
+
+    def syntax_in?(ns_name, name)
+      !syntax_in(ns_name, name).nil?
+    end
+
+    def ns_syntaxes(ns_name)
+      @syntaxes[ns_name] ||= {}
     end
 
     # ---- require aliases / refers -----------------------------------------

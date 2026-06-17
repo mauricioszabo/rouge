@@ -65,7 +65,15 @@ module Rouge
     # Expand a syntax call: resolve the impl, wrap +^:block+ args, run the impl
     # and transpile the form it returns.
     def expand_syntax(name, arg_forms, via_apply: false)
-      syn = @env.syntax(name)
+      do_expand_syntax(@env.syntax(name), name, arg_forms, via_apply)
+    end
+
+    # Expand a syntax resolved to a specific namespace (qualified/aliased call).
+    def expand_syntax_in(ns_name, name, arg_forms, via_apply: false)
+      do_expand_syntax(@env.syntax_in(ns_name, name), name, arg_forms, via_apply)
+    end
+
+    def do_expand_syntax(syn, name, arg_forms, via_apply)
       impl, = resolve_impl(syn, name, arg_forms, via_apply)
       wrapped = wrap_block_args(arg_forms, impl)
       result = with_syntax_emitter { impl.callable.call(*wrapped) }
