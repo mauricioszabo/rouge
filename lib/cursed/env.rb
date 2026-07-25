@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module Rouge
+module Cursed
   # The transpile-time environment.  Tracks:
   #
   #  * lexical scopes, each binding a Clojure name to a munged Ruby name and an
@@ -30,7 +30,7 @@ module Rouge
     def initialize(load_syntaxes: true)
       @scopes = [{}]
       @macros = {}
-      @syntaxes = load_syntaxes ? Rouge.default_syntaxes_copy : {}
+      @syntaxes = load_syntaxes ? Cursed.default_syntaxes_copy : {}
       @gensym_counter = 0
       @current_ns = nil
       @module_ns = false
@@ -136,7 +136,7 @@ module Rouge
     # behave like +clojure.core+ — referred everywhere automatically).
 
     # The namespace holding the prelude syntaxes, auto-referred in every ns.
-    CORE_SYNTAX_NS = "rouge.core".freeze
+    CORE_SYNTAX_NS = "cursed.core".freeze
 
     def define_syntax(name, dispatch)
       syn = (ns_syntaxes(current_ns_key)[name.to_s] ||= Syntax.new(nil, {}))

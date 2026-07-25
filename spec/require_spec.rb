@@ -38,8 +38,8 @@ describe "namespaces, require, aliases" do
   describe "per-namespace macro scope" do
     # One Env across both files, so we can observe cross-namespace visibility.
     def transpile_files(*sources)
-      env = Rouge::Env.new
-      t = Rouge::Transpiler.new(env)
+      env = Cursed::Env.new
+      t = Cursed::Transpiler.new(env)
       sources.map { |s| t.transpile(s) }
     end
 
@@ -85,8 +85,8 @@ describe "namespaces, require, aliases" do
 
   describe "per-namespace syntax scope" do
     def transpile_files(*sources)
-      env = Rouge::Env.new
-      t = Rouge::Transpiler.new(env)
+      env = Cursed::Env.new
+      t = Cursed::Transpiler.new(env)
       sources.map { |s| t.transpile(s) }
     end
 

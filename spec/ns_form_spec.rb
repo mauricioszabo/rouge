@@ -1,8 +1,8 @@
 require 'spec_helper'
 
-describe Rouge::NsForm do
+describe Cursed::NsForm do
   def parse(src)
-    described_class.parse(Rouge::Reader.read_all(src).first)
+    described_class.parse(Cursed::Reader.read_all(src).first)
   end
 
   it "reads the namespace name" do

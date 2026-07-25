@@ -2,23 +2,23 @@
 
 require 'pathname'
 
-module Rouge
-  # Per-project configuration, read from a +rouge.edn+ at (or above) the project
-  # root.  Declares where Rouge sources live and where compiled Ruby is written.
+module Cursed
+  # Per-project configuration, read from a +cursed.edn+ at (or above) the project
+  # root.  Declares where Cursed sources live and where compiled Ruby is written.
   #
   #   {:source-roots ["src"]
   #    :output-root  "lib"}
   #
   # Defaults to a mirrored +src/ -> lib/+ layout when no config is found.
   class Config
-    ROUGE_EXTS = %w[.rg .clj .rouge].freeze
-    CONFIG_NAME = "rouge.edn".freeze
+    CURSED_EXTS = %w[.rg .clj .cursed].freeze
+    CONFIG_NAME = "cursed.edn".freeze
 
     attr_reader :root, :source_roots, :output_root
 
     def self.load(start_dir = Dir.pwd)
       dir = find_config_dir(start_dir)
-      data = dir ? (Rouge::Reader.read_all(File.read(File.join(dir, CONFIG_NAME))).first || {}) : {}
+      data = dir ? (Cursed::Reader.read_all(File.read(File.join(dir, CONFIG_NAME))).first || {}) : {}
       new(dir || start_dir, data)
     end
 
@@ -46,12 +46,12 @@ module Rouge
       @source_roots.find { |r| abs_path == r || abs_path.start_with?(r + File::SEPARATOR) }
     end
 
-    # Map an absolute Rouge source path to its compiled +.rb+ output path,
+    # Map an absolute Cursed source path to its compiled +.rb+ output path,
     # mirroring the tree under +output_root+.
     def output_path_for(source_abs)
       root = source_root_for(source_abs)
       rel = root ? source_abs[(root.length + 1)..] : File.basename(source_abs)
-      File.join(@output_root, rel.sub(/\.(rg|clj|rouge)\z/, ".rb"))
+      File.join(@output_root, rel.sub(/\.(rg|clj|cursed)\z/, ".rb"))
     end
 
     # The compiled output path for a dotted namespace name (mirrored layout),

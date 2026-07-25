@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module Rouge
+module Cursed
   module Nrepl
     # Minimal bencode codec — just the grammar nREPL uses: integers (+i..e+),
     # byte strings (+<len>:<bytes>+), lists (+l..e+) and dictionaries (+d..e+,

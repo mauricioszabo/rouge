@@ -1,4 +1,4 @@
-require 'rouge'
+require 'cursed'
 
 RSpec.configure do |config|
   config.order = 'random'
@@ -7,20 +7,20 @@ RSpec.configure do |config|
   config.expect_with(:rspec) { |c| c.syntax = %i[expect should] }
 end
 
-# Transpile a Rouge source string to Ruby (fresh env each call).
+# Transpile a Cursed source string to Ruby (fresh env each call).
 def transpile(source)
-  Rouge::Transpiler.transpile(source)
+  Cursed::Transpiler.transpile(source)
 end
 
 # Transpile a single expression form (no trailing newline) for terse specs.
 # A top-level (let ...)/(do ...) becomes a flat statement list, as it would
 # inside a method body.
 def emit(source)
-  emitter = Rouge::Emitter.new
-  form = Rouge::Reader.read_all(source).first
+  emitter = Cursed::Emitter.new
+  form = Cursed::Reader.read_all(source).first
   node = emitter.emit(form)
-  pp = Rouge::PrettyPrinter.new
-  if node.is_a?(Rouge::RubyAST::Begin)
+  pp = Cursed::PrettyPrinter.new
+  if node.is_a?(Cursed::RubyAST::Begin)
     node.body.map { |n| pp.render(n) }.join("\n")
   else
     pp.render(node)

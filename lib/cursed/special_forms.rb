@@ -1,7 +1,7 @@
 # encoding: utf-8
 
-# Special forms for the emitter.  Reopens +Rouge::Emitter+.
-module Rouge
+# Special forms for the emitter.  Reopens +Cursed::Emitter+.
+module Cursed
   class Emitter
     SPECIAL_FORMS = %w[
       def defn defn- def- defmacro defsyntax defimpl fn fn* let let* if when
@@ -130,7 +130,7 @@ module Rouge
     # ---- fn ---------------------------------------------------------------
 
     def emit_fn(tail)
-      tail = tail[1..] if tail[0].is_a?(Rouge::Symbol) # optional name
+      tail = tail[1..] if tail[0].is_a?(Cursed::Symbol) # optional name
       if tail[0].is_a?(::Array)
         @env.with_scope do
           params, setup = parse_params(tail[0])
@@ -159,7 +159,7 @@ module Rouge
 
     def emit_binding(sym, valform)
       type = nil
-      type = hint_type(sym) if sym.is_a?(Rouge::Symbol)
+      type = hint_type(sym) if sym.is_a?(Cursed::Symbol)
       type ||= infer_type(valform)
       value = emit(valform)
 
@@ -203,7 +203,7 @@ module Rouge
       tail.each_slice(2) do |test, expr|
         if test.is_a?(::Symbol) && test == :else
           else_body = body_of(emit(expr))
-        elsif test.is_a?(Rouge::Symbol) && test.name_s == "else"
+        elsif test.is_a?(Cursed::Symbol) && test.name_s == "else"
           else_body = body_of(emit(expr))
         else
           clauses << [emit(test), body_of(emit(expr))]
@@ -264,10 +264,10 @@ module Rouge
       rescues = []
       ensure_body = nil
       tail.each do |form|
-        if form.is_a?(Rouge::Seq::Cons) || form.is_a?(Rouge::Seq::ISeq)
+        if form.is_a?(Cursed::Seq::Cons) || form.is_a?(Cursed::Seq::ISeq)
           a = form.to_a
           head = a[0]
-          if head.is_a?(Rouge::Symbol) && head.name_s == "catch"
+          if head.is_a?(Cursed::Symbol) && head.name_s == "catch"
             klass = emit(a[1])
             var = @env.with_scope { @env.define_local(a[2]) }
             @env.with_scope do
@@ -276,7 +276,7 @@ module Rouge
                           emit_body(a[3..])]
             end
             next
-          elsif head.is_a?(Rouge::Symbol) && head.name_s == "finally"
+          elsif head.is_a?(Cursed::Symbol) && head.name_s == "finally"
             ensure_body = emit_body(a[1..])
             next
           end
@@ -289,9 +289,9 @@ module Rouge
     def emit_set(tail)
       target = tail[0]
       value = emit(tail[1])
-      if (target.is_a?(Rouge::Seq::Cons) || target.is_a?(Rouge::Seq::ISeq))
+      if (target.is_a?(Cursed::Seq::Cons) || target.is_a?(Cursed::Seq::ISeq))
         a = target.to_a
-        if a[0].is_a?(Rouge::Symbol) && a[0].name_s.start_with?(".")
+        if a[0].is_a?(Cursed::Symbol) && a[0].name_s.start_with?(".")
           field = a[0].name_s[1..]
           return Call.new(emit(a[1]), "#{@env.munge_method(field)}=", [value])
         end
@@ -321,11 +321,11 @@ module Rouge
       acc = tail[0]
       tail[1..].each do |step|
         acc =
-          if step.is_a?(Rouge::Seq::Cons) || step.is_a?(Rouge::Seq::ISeq)
+          if step.is_a?(Cursed::Seq::Cons) || step.is_a?(Cursed::Seq::ISeq)
             a = step.to_a
-            Rouge::Seq::Cons[Rouge::Symbol[:".#{a[0].name_s}"], acc, *a[1..]]
+            Cursed::Seq::Cons[Cursed::Symbol[:".#{a[0].name_s}"], acc, *a[1..]]
           else
-            Rouge::Seq::Cons[Rouge::Symbol[:".#{step.name_s}"], acc]
+            Cursed::Seq::Cons[Cursed::Symbol[:".#{step.name_s}"], acc]
           end
       end
       emit(acc)
@@ -336,7 +336,7 @@ module Rouge
 
       # (apply syntax args... lastseq): the collection's type can't be known
       # statically, so route through the syntax's :vararg impl.
-      if f.is_a?(Rouge::Symbol) && f.ns.nil? && @mode != :macro &&
+      if f.is_a?(Cursed::Symbol) && f.ns.nil? && @mode != :macro &&
          @env.syntax?(f.name_s) && !@env.local?(f.to_s)
         middle = tail[1..-2] || []
         return expand_syntax(f.name_s, middle + [tail[-1]], via_apply: true)
@@ -347,12 +347,12 @@ module Rouge
       args = emit_args(mid)
       args << Unop.new("*", emit(last)) if tail.length > 1
 
-      if @mode == :macro && f.is_a?(Rouge::Symbol) && form_fn?(f.name_s)
-        return Call.new(ConstPath.new("Rouge::FormRuntime"),
+      if @mode == :macro && f.is_a?(Cursed::Symbol) && form_fn?(f.name_s)
+        return Call.new(ConstPath.new("Cursed::FormRuntime"),
                         @env.munge_method(f.name_s), args)
       end
 
-      if f.is_a?(Rouge::Symbol) && !@env.local?(f.to_s) && f.ns.nil?
+      if f.is_a?(Cursed::Symbol) && !@env.local?(f.to_s) && f.ns.nil?
         Call.new(nil, @env.munge_method(f.name_s), args)
       else
         Call.new(emit(f), "call", args)
@@ -397,15 +397,15 @@ module Rouge
       acc = tail[0]
       tail[1..].each do |step|
         acc =
-          if step.is_a?(Rouge::Seq::Cons) || step.is_a?(Rouge::Seq::ISeq)
+          if step.is_a?(Cursed::Seq::Cons) || step.is_a?(Cursed::Seq::ISeq)
             a = step.to_a
             if first
-              Rouge::Seq::Cons[a[0], acc, *a[1..]]
+              Cursed::Seq::Cons[a[0], acc, *a[1..]]
             else
-              Rouge::Seq::Cons[*a, acc]
+              Cursed::Seq::Cons[*a, acc]
             end
           else
-            Rouge::Seq::Cons[step, acc]
+            Cursed::Seq::Cons[step, acc]
           end
       end
       acc
@@ -424,9 +424,9 @@ module Rouge
     # Quote producing plain Ruby data (used in ordinary code).
     def quote_code(form)
       case form
-      when Rouge::Symbol then Lit.new(":#{form.name_s}")
+      when Cursed::Symbol then Lit.new(":#{form.name_s}")
       when ::Symbol then emit_keyword(form)
-      when Rouge::Seq::Cons, Rouge::Seq::ISeq
+      when Cursed::Seq::Cons, Cursed::Seq::ISeq
         ArrayLit.new(form.to_a.map { |f| quote_code(f) })
       when ::Array then ArrayLit.new(form.map { |f| quote_code(f) })
       when ::Hash then HashLit.new(form.map { |k, v| [quote_code(k), quote_code(v)] })
@@ -437,10 +437,10 @@ module Rouge
     # Quote producing reader-form data (used inside macro bodies).
     def quote_data(form)
       case form
-      when Rouge::Symbol then Lit.new("Rouge::Symbol[#{form.to_sym.inspect}]")
+      when Cursed::Symbol then Lit.new("Cursed::Symbol[#{form.to_sym.inspect}]")
       when ::Symbol then Lit.new(form.inspect)
-      when Rouge::Seq::Cons, Rouge::Seq::ISeq
-        Index.new(ConstPath.new("Rouge::Seq::Cons"),
+      when Cursed::Seq::Cons, Cursed::Seq::ISeq
+        Index.new(ConstPath.new("Cursed::Seq::Cons"),
                   form.to_a.map { |f| quote_data(f) })
       when ::Array then ArrayLit.new(form.map { |f| quote_data(f) })
       when ::Hash then HashLit.new(form.map { |k, v| [quote_data(k), quote_data(v)] })
@@ -469,19 +469,19 @@ module Rouge
       i = 0
       while i < arr.length
         p = arr[i]
-        if p.is_a?(Rouge::Symbol) && p.name_s == "&"
+        if p.is_a?(Cursed::Symbol) && p.name_s == "&"
           rest = arr[i + 1]
           params << "*#{@env.define_local(rest, type: :vector)}"
           i += 2
           next
         end
-        if p.is_a?(Rouge::Symbol) && block_param?(p)
+        if p.is_a?(Cursed::Symbol) && block_param?(p)
           params << "&#{@env.define_local(p, type: :block)}"
           i += 1
           next
         end
         case p
-        when Rouge::Symbol
+        when Cursed::Symbol
           params << @env.define_local(p, type: hint_type(p))
         when ::Array
           names = p.map { |s| @env.define_local(s, type: hint_type(s)) }
@@ -499,7 +499,7 @@ module Rouge
     def destructure_map(map, src_node)
       nodes = []
       map.each do |k, v|
-        key = k.is_a?(Rouge::Symbol) ? k.name : k
+        key = k.is_a?(Cursed::Symbol) ? k.name : k
         if key == :keys
           v.each do |s|
             r = @env.define_local(s)

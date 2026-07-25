@@ -1,7 +1,7 @@
 # encoding: utf-8
-require 'rouge/wrappers'
+require 'cursed/wrappers'
 
-class Rouge::Reader
+class Cursed::Reader
   class UnexpectedCharacterError < StandardError; end
   class NumberFormatError < StandardError; end
   class EndOfDataError < StandardError; end
@@ -38,7 +38,7 @@ class Rouge::Reader
     when /"/
       string
     when /\(/
-      Rouge::Seq::Cons[*list(')')]
+      Cursed::Seq::Cons[*list(')')]
     when /\[/
       list ']'
     when /#/
@@ -273,7 +273,7 @@ class Rouge::Reader
     if MAYBE_NUMBER.match(s)
       number(s)
     else
-      Rouge::Symbol[s.intern]
+      Cursed::Symbol[s.intern]
     end
   end
 
@@ -294,7 +294,7 @@ class Rouge::Reader
 
   def quotation
     consume
-    Rouge::Seq::Cons[Rouge::Symbol[:quote], lex]
+    Cursed::Seq::Cons[Cursed::Symbol[:quote], lex]
   rescue EOFError
     reader_raise EndOfDataError, "in #quotation"
   end
@@ -313,9 +313,9 @@ class Rouge::Reader
     consume
     if peek == ?@
       consume
-      Rouge::Splice[lex].freeze
+      Cursed::Splice[lex].freeze
     else
-      Rouge::Dequote[lex].freeze
+      Cursed::Dequote[lex].freeze
     end
   rescue EOFError
     reader_raise EndOfDataError, "in #dequotation"
@@ -323,13 +323,13 @@ class Rouge::Reader
 
   def dequote form
     case form
-    when Rouge::Seq::ISeq, Array
+    when Cursed::Seq::ISeq, Array
       rest = []
       group = []
       form.each do |f|
-        if f.is_a? Rouge::Splice
+        if f.is_a? Cursed::Splice
           if group.length > 0
-            rest << Rouge::Seq::Cons[Rouge::Symbol[:list], *group]
+            rest << Cursed::Seq::Cons[Cursed::Symbol[:list], *group]
             group = []
           end
           rest << f.inner
@@ -339,43 +339,43 @@ class Rouge::Reader
       end
 
       if group.length > 0
-        rest << Rouge::Seq::Cons[Rouge::Symbol[:list], *group]
+        rest << Cursed::Seq::Cons[Cursed::Symbol[:list], *group]
       end
 
       r =
         if rest.length == 1
           rest[0]
         else
-          Rouge::Seq::Cons[Rouge::Symbol[:concat], *rest]
+          Cursed::Seq::Cons[Cursed::Symbol[:concat], *rest]
         end
 
       if form.is_a?(Array)
-        Rouge::Seq::Cons[Rouge::Symbol[:apply],
-                    Rouge::Symbol[:vector],
+        Cursed::Seq::Cons[Cursed::Symbol[:apply],
+                    Cursed::Symbol[:vector],
                     r]
       elsif rest.length > 1
-        Rouge::Seq::Cons[Rouge::Symbol[:seq], r]
+        Cursed::Seq::Cons[Cursed::Symbol[:seq], r]
       else
         r
       end
     when Hash
       Hash[form.map {|k,v| [dequote(k), dequote(v)]}]
-    when Rouge::Dequote
+    when Cursed::Dequote
       form.inner
-    when Rouge::Symbol
+    when Cursed::Symbol
       if form.ns.nil? and form.name_s =~ /(\#)$/
-        Rouge::Seq::Cons[
-            Rouge::Symbol[:quote],
-            Rouge::Symbol[
+        Cursed::Seq::Cons[
+            Cursed::Symbol[:quote],
+            Cursed::Symbol[
                 ("#{form.name.to_s.gsub(/(\#)$/, '')}__" \
                  "#{@gensyms[0]}__auto__").intern]]
       else
         # In the transpiler we keep symbols unqualified inside syntax-quote so
         # the emitter can still recognise special forms and core fns.
-        Rouge::Seq::Cons[Rouge::Symbol[:quote], form]
+        Cursed::Seq::Cons[Cursed::Symbol[:quote], form]
       end
     else
-      Rouge::Seq::Cons[Rouge::Symbol[:quote], form]
+      Cursed::Seq::Cons[Cursed::Symbol[:quote], form]
     end
   end
 
@@ -429,16 +429,16 @@ class Rouge::Reader
     case peek
     when '('
       body, count = dispatch_rewrite_fn(lex, 0)
-      Rouge::Seq::Cons[
-          Rouge::Symbol[:fn],
-          (1..count).map {|n| Rouge::Symbol[:"%#{n}"]}.freeze,
+      Cursed::Seq::Cons[
+          Cursed::Symbol[:fn],
+          (1..count).map {|n| Cursed::Symbol[:"%#{n}"]}.freeze,
           body]
     when "{"
       consume
       set
     when "'"
       consume
-      Rouge::Seq::Cons[Rouge::Symbol[:var], lex]
+      Cursed::Seq::Cons[Cursed::Symbol[:var], lex]
     when "_"
       consume
       lex
@@ -455,20 +455,20 @@ class Rouge::Reader
 
   def dispatch_rewrite_fn form, count
     case form
-    when Rouge::Seq::Cons, Array
+    when Cursed::Seq::Cons, Array
       mapped = form.map do |e|
         e, count = dispatch_rewrite_fn(e, count)
         e
       end.freeze
 
-      if form.is_a?(Rouge::Seq::Cons)
-        [Rouge::Seq::Cons[*mapped], count]
+      if form.is_a?(Cursed::Seq::Cons)
+        [Cursed::Seq::Cons[*mapped], count]
       else
         [mapped, count]
       end
-    when Rouge::Symbol
+    when Cursed::Symbol
       if form.name == :"%"
-        [Rouge::Symbol[:"%1"], [1, count].max]
+        [Cursed::Symbol[:"%1"], [1, count].max]
       elsif form.name.to_s =~ /^%(\d+)$/
         [form, [$1.to_i, count].max]
       else
@@ -484,9 +484,9 @@ class Rouge::Reader
     meta = lex
     attach = lex
 
-    if not attach.class < Rouge::Metadata
+    if not attach.class < Cursed::Metadata
       reader_raise ArgumentError,
-          "metadata can only be applied to classes mixing in Rouge::Metadata"
+          "metadata can only be applied to classes mixing in Cursed::Metadata"
     end
 
     meta =
@@ -495,7 +495,7 @@ class Rouge::Reader
         {meta => true}
       when String
         {:tag => meta}
-      when Rouge::Symbol
+      when Cursed::Symbol
         {:tag => meta}
       else
         meta
@@ -515,7 +515,7 @@ class Rouge::Reader
 
   def deref
     consume
-    Rouge::Seq::Cons[Rouge::Symbol[:"rouge.core/deref"], lex]
+    Cursed::Seq::Cons[Cursed::Symbol[:"cursed.core/deref"], lex]
   rescue EOFError
     reader_raise EndOfDataError, "in #deref"
   end

@@ -1,10 +1,10 @@
 require 'spec_helper'
-require 'rouge/nrepl/server'
+require 'cursed/nrepl/server'
 require 'socket'
 require 'timeout'
 require 'tmpdir'
 
-describe Rouge::Nrepl::Bencode do
+describe Cursed::Nrepl::Bencode do
   it "round-trips integers, strings, lists and dicts" do
     value = { "op" => "eval", "n" => 42, "xs" => ["a", "b"], "nested" => { "k" => 1 } }
     io = StringIO.new(described_class.encode(value))
@@ -20,20 +20,20 @@ describe Rouge::Nrepl::Bencode do
   end
 end
 
-describe Rouge::Nrepl::Server do
+describe Cursed::Nrepl::Server do
   around { |ex| Dir.mktmpdir { |d| @dir = d; ex.run } }
 
-  before(:all) { @b = Rouge::Nrepl::Bencode }
+  before(:all) { @b = Cursed::Nrepl::Bencode }
 
   def with_server
-    server = described_class.new(config: Rouge::Config.new(@dir), port: 0)
+    server = described_class.new(config: Cursed::Config.new(@dir), port: 0)
     thread = Thread.new { server.start }
     port = nil
     portfile = File.join(@dir, ".nrepl-port")
     Timeout.timeout(5) { sleep 0.02 until File.exist?(portfile) && (port = File.read(portfile).to_i) > 0 }
     sock = TCPSocket.new("127.0.0.1", port)
     sock.binmode
-    yield sock, Rouge::Nrepl::Bencode::Decoder.new(sock)
+    yield sock, Cursed::Nrepl::Bencode::Decoder.new(sock)
   ensure
     sock&.close
     thread&.kill
@@ -41,7 +41,7 @@ describe Rouge::Nrepl::Server do
 
   # Send a request, collect reply messages up to (and including) "done".
   def request(sock, dec, msg)
-    sock.write(Rouge::Nrepl::Bencode.encode(msg))
+    sock.write(Cursed::Nrepl::Bencode.encode(msg))
     sock.flush
     msgs = []
     Timeout.timeout(5) do
@@ -82,7 +82,7 @@ describe Rouge::Nrepl::Server do
   end
 
   it "load-file then uses the loaded namespace live" do
-    File.write(File.join(@dir, "rouge.edn"), '{:source-roots ["."] :output-root "out"}')
+    File.write(File.join(@dir, "cursed.edn"), '{:source-roots ["."] :output-root "out"}')
     File.write(File.join(@dir, "math.rg"), "(ns ^:module mymath)\n(defn sq [n] (* n n))")
     with_server do |sock, dec|
       sid = request(sock, dec, "op" => "clone", "id" => "1").first["new-session"]

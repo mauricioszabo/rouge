@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module Rouge
+module Cursed
   # The tiny runtime that backs *macro bodies* at transpile time.  Macro
   # bodies are themselves transpiled to Ruby and evaluated in-process; the
   # form-builder fns they use (+list+, +concat+, syntax-quote's +seq+, ...)
@@ -18,7 +18,7 @@ module Rouge
     # The static type token the active emitter attributes to a form.  Used by a
     # +defsyntax+ dispatch fn, e.g. +(defsyntax map (fn [f coll] (type-of coll)))+.
     def type_of(form)
-      Rouge::FormRuntime.emitter.type_of(form)
+      Cursed::FormRuntime.emitter.type_of(form)
     end
 
     # Mark a function form so the emitter lowers it to an +arity+-param Ruby
@@ -26,23 +26,23 @@ module Rouge
     # computes at expansion (e.g. one block param per collection in a parallel
     # +map+).
     def as_block(form, arity = 1)
-      Rouge::BlockArg[form, arity]
+      Cursed::BlockArg[form, arity]
     end
 
     def list(*xs)
-      Rouge::Seq::Cons[*xs]
+      Cursed::Seq::Cons[*xs]
     end
 
     def cons(head, tail)
-      Rouge::Seq::Cons.new(head, Rouge::Seq.seq(tail) || Rouge::Seq::Empty)
+      Cursed::Seq::Cons.new(head, Cursed::Seq.seq(tail) || Cursed::Seq::Empty)
     end
 
     def concat(*seqs)
-      Rouge::Seq::Cons[*seqs.flat_map { |s| to_a(s) }]
+      Cursed::Seq::Cons[*seqs.flat_map { |s| to_a(s) }]
     end
 
     def seq(x)
-      Rouge::Seq.seq(x)
+      Cursed::Seq.seq(x)
     end
 
     def vector(*xs)
@@ -50,7 +50,7 @@ module Rouge
     end
 
     def symbol(name)
-      Rouge::Symbol[name.to_sym]
+      Cursed::Symbol[name.to_sym]
     end
 
     def first(s)
@@ -58,7 +58,7 @@ module Rouge
     end
 
     def rest(s)
-      Rouge::Seq::Cons[*to_a(s).drop(1)]
+      Cursed::Seq::Cons[*to_a(s).drop(1)]
     end
 
     def apply(fn, *args)
@@ -68,16 +68,16 @@ module Rouge
 
     def gensym(prefix = "g__")
       @counter = (@counter || 0) + 1
-      Rouge::Symbol[:"#{prefix}#{@counter}__auto__"]
+      Cursed::Symbol[:"#{prefix}#{@counter}__auto__"]
     end
 
     def to_a(s)
       case s
       when nil then []
-      when Rouge::Seq::ISeq then s.to_a
+      when Cursed::Seq::ISeq then s.to_a
       when ::Array then s
       else
-        seqd = Rouge::Seq.seq(s)
+        seqd = Cursed::Seq.seq(s)
         seqd ? seqd.to_a : [s]
       end
     end

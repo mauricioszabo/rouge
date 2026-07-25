@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 # Functions, clases and modules concerning the `seq' sequence abstraction.
-module Rouge::Seq
+module Cursed::Seq
   # An empty seq.
   Empty = Object.new
 
@@ -165,13 +165,13 @@ module Rouge::Seq
     end
 
     def next
-      Rouge::Seq.seq(@tail)
+      Cursed::Seq.seq(@tail)
     end
 
     def to_s
-      if self.length == 2 && self[0] == Rouge::Symbol[:quote]
+      if self.length == 2 && self[0] == Cursed::Symbol[:quote]
         "'#{self[1]}"
-      elsif self.length == 2 && self[0] == Rouge::Symbol[:var]
+      elsif self.length == 2 && self[0] == Cursed::Symbol[:var]
         "#'#{self[1]}"
       else
         "(#{to_a.map(&:to_s).join(' ')})"
@@ -245,7 +245,7 @@ module Rouge::Seq
       if @realized
         @result
       else
-        @result = Rouge::Seq.seq(@body.call) || Empty
+        @result = Cursed::Seq.seq(@body.call) || Empty
         @body = nil
         @realized = true
         @result
@@ -283,7 +283,7 @@ module Rouge::Seq
       if form.empty?
         nil
       else
-        Rouge::Seq::Array.new(form, 0)
+        Cursed::Seq::Array.new(form, 0)
       end
     when Hash, Set, Enumerator
       seq(form.to_a)

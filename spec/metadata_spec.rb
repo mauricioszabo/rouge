@@ -1,11 +1,11 @@
 # encoding: utf-8
 require 'spec_helper'
-require 'rouge'
+require 'cursed'
 
-describe Rouge::Metadata do
+describe Cursed::Metadata do
   before do
     @class = Class.new do
-      include Rouge::Metadata
+      include Cursed::Metadata
     end
   end
 
@@ -35,23 +35,23 @@ describe Rouge::Metadata do
 
       lambda {
         @class.new.meta = 4
-      }.should raise_exception(Rouge::Metadata::InvalidMetadataError)
+      }.should raise_exception(Cursed::Metadata::InvalidMetadataError)
 
       lambda {
         @class.new.meta = true
-      }.should raise_exception(Rouge::Metadata::InvalidMetadataError)
+      }.should raise_exception(Cursed::Metadata::InvalidMetadataError)
 
       lambda {
-        @class.new.meta = Rouge::Symbol[:blah]
-      }.should raise_exception(Rouge::Metadata::InvalidMetadataError)
+        @class.new.meta = Cursed::Symbol[:blah]
+      }.should raise_exception(Cursed::Metadata::InvalidMetadataError)
 
       lambda {
         @class.new.meta = []
-      }.should raise_exception(Rouge::Metadata::InvalidMetadataError)
+      }.should raise_exception(Cursed::Metadata::InvalidMetadataError)
 
       lambda {
-        @class.new.meta = Rouge::Seq::Cons["what"]
-      }.should raise_exception(Rouge::Metadata::InvalidMetadataError)
+        @class.new.meta = Cursed::Seq::Cons["what"]
+      }.should raise_exception(Cursed::Metadata::InvalidMetadataError)
     end
   end
 end

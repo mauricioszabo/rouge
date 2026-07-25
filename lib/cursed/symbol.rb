@@ -1,8 +1,8 @@
 # encoding: utf-8
-require 'rouge/metadata'
+require 'cursed/metadata'
 
-class Rouge::Symbol
-  include Rouge::Metadata
+class Cursed::Symbol
+  include Cursed::Metadata
 
   attr_reader :ns, :name, :ns_s, :name_s, :name_parts, :new_sym
 
@@ -16,8 +16,8 @@ class Rouge::Symbol
   KNOWNS = {
     :/ => [nil, :/],
     :"./" => [nil, :"./"],
-    :"rouge.core//" => [:"rouge.core", :/],
-    :"rouge.core/./" => [:"rouge.core", :"./"]
+    :"cursed.core//" => [:"cursed.core", :/],
+    :"cursed.core/./" => [:"cursed.core", :"./"]
   }
 
   CACHE = {}
@@ -64,7 +64,7 @@ class Rouge::Symbol
   end
 
   def inspect
-    "Rouge::Symbol[#{to_sym.inspect}]"
+    "Cursed::Symbol[#{to_sym.inspect}]"
   end
 
   def to_s
@@ -72,7 +72,7 @@ class Rouge::Symbol
   end
 
   def ==(right)
-    right.is_a?(Rouge::Symbol) and right.ns == @ns and right.name == @name
+    right.is_a?(Cursed::Symbol) and right.ns == @ns and right.name == @name
   end
 end
 

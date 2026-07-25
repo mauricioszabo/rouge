@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 # The type-dispatched syntax engine (+defsyntax+ / +defimpl+).  Reopens
-# +Rouge::Emitter+.
+# +Cursed::Emitter+.
 #
 # A +defsyntax+ registers a *dispatch fn* (a defmacro-style lambda over the
 # argument forms) that returns a dispatch token.  A +defimpl+ registers, per
@@ -11,9 +11,9 @@
 # transpiles the form the impl returns.
 #
 # A +^:block+ (or +^{:block N}+) impl param is spliced as a Ruby block: its
-# argument form is wrapped in a +Rouge::BlockArg+ before the impl runs, which the
+# argument form is wrapped in a +Cursed::BlockArg+ before the impl runs, which the
 # emitter then lowers via +coerce_block+.
-module Rouge
+module Cursed
   class Emitter
     # Map class-name / built-in tokens onto the canonical symbols +type_of+
     # produces, so +(defimpl map Array ...)+ matches a vector literal, etc.
@@ -102,7 +102,7 @@ module Rouge
         return [impl, :default]
       end
       if (impl = pick_arity(syn.impls[:missing], argc))
-        warn "rouge: #{name}: unresolved dispatch type #{dv.inspect}; " \
+        warn "cursed: #{name}: unresolved dispatch type #{dv.inspect}; " \
              "using :missing impl"
         return [impl, :missing]
       end
@@ -136,11 +136,11 @@ module Rouge
     # Make +type-of+ (and any future introspection) inside a dispatch fn / impl
     # resolve against this live emitter.
     def with_syntax_emitter
-      prev = Rouge::FormRuntime.emitter
-      Rouge::FormRuntime.emitter = self
+      prev = Cursed::FormRuntime.emitter
+      Cursed::FormRuntime.emitter = self
       yield
     ensure
-      Rouge::FormRuntime.emitter = prev
+      Cursed::FormRuntime.emitter = prev
     end
 
     def wrap_block_args(arg_forms, impl)
@@ -148,13 +148,13 @@ module Rouge
 
       args = arg_forms.dup
       impl.block_params.each do |idx, arity|
-        args[idx] = Rouge::BlockArg[args[idx], arity] if idx < args.length
+        args[idx] = Cursed::BlockArg[args[idx], arity] if idx < args.length
       end
       args
     end
 
     def token_string(form)
-      form.is_a?(Rouge::Symbol) ? form.name_s : form.to_s
+      form.is_a?(Cursed::Symbol) ? form.name_s : form.to_s
     end
 
     def normalize_token(str)
@@ -164,7 +164,7 @@ module Rouge
 
     def arity_of(vec)
       arr = vec.to_a
-      amp = arr.find_index { |p| p.is_a?(Rouge::Symbol) && p.name_s == "&" }
+      amp = arr.find_index { |p| p.is_a?(Cursed::Symbol) && p.name_s == "&" }
       amp ? [amp, true] : [arr.length, false]
     end
 
@@ -179,14 +179,14 @@ module Rouge
       idx = 0
       while i < arr.length
         p = arr[i]
-        if p.is_a?(Rouge::Symbol) && p.name_s == "&"
+        if p.is_a?(Cursed::Symbol) && p.name_s == "&"
           rest = arr[i + 1]
           params << "*#{@env.define_local(rest, type: :vector)}"
           i += 2
           idx += 1
           next
         end
-        if p.is_a?(Rouge::Symbol) && block_param?(p)
+        if p.is_a?(Cursed::Symbol) && block_param?(p)
           block_params[idx] = p.meta[:block].is_a?(::Integer) ? p.meta[:block] : 1
           params << @env.define_local(p)
         else

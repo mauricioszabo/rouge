@@ -3,11 +3,11 @@
 require 'socket'
 require 'stringio'
 require 'securerandom'
-require 'rouge/nrepl/bencode'
+require 'cursed/nrepl/bencode'
 
-module Rouge
+module Cursed
   module Nrepl
-    # A bencode nREPL server wrapping the Rouge +Interpreter+.  Each cloned
+    # A bencode nREPL server wrapping the Cursed +Interpreter+.  Each cloned
     # session gets its own Interpreter (its own Env, binding and :dev Loader), so
     # macros/defs/requires are isolated per session.  Speaks enough of the
     # protocol for CIDER/Calva: +clone+, +close+, +describe+, +eval+, +load-file+.
@@ -18,7 +18,7 @@ module Rouge
       OPS = %w[clone close describe eval load-file].freeze
 
       def initialize(config: nil, host: "127.0.0.1", port: 7888)
-        @config = config || Rouge::Config.load
+        @config = config || Cursed::Config.load
         @host = host
         @port = port
         @sessions = {}
@@ -29,7 +29,7 @@ module Rouge
         server = TCPServer.new(@host, @port)
         actual = server.addr[1]
         write_port_file(actual)
-        warn "Rouge nREPL server started on #{@host}:#{actual}"
+        warn "Cursed nREPL server started on #{@host}:#{actual}"
         loop do
           client = server.accept
           Thread.new(client) { |c| serve(c) }
@@ -63,7 +63,7 @@ module Rouge
 
       def op_clone(msg, client)
         id = SecureRandom.uuid
-        @sessions[id] = Rouge::Interpreter.new(config: @config)
+        @sessions[id] = Cursed::Interpreter.new(config: @config)
         respond(client, reply(msg, "new-session" => id, "status" => ["done"]))
       end
 
@@ -75,13 +75,13 @@ module Rouge
       def op_describe(msg, client)
         respond(client, reply(msg,
                            "ops" => OPS.to_h { |o| [o, {}] },
-                           "versions" => { "rouge" => { "version-string" => Rouge::VERSION } },
+                           "versions" => { "cursed" => { "version-string" => Cursed::VERSION } },
                            "status" => ["done"]))
       end
 
       def op_eval(msg, client)
         run_eval(msg, client) do |interp|
-          Rouge::Reader.read_all(msg["code"].to_s).each do |form|
+          Cursed::Reader.read_all(msg["code"].to_s).each do |form|
             value = interp.eval_form(form)
             respond(client, reply(msg, "value" => pr_str(value)))
           end
@@ -127,7 +127,7 @@ module Rouge
 
       def session_for(msg)
         sid = msg["session"]
-        @sessions[sid] ||= Rouge::Interpreter.new(config: @config)
+        @sessions[sid] ||= Cursed::Interpreter.new(config: @config)
       end
 
       def reply(msg, fields)

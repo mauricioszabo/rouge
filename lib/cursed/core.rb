@@ -1,16 +1,16 @@
 # encoding: utf-8
 
 # The clojure.core => Ruby mapping table for the emitter.  Reopens
-# +Rouge::Emitter+.  The guiding rules from the design:
+# +Cursed::Emitter+.  The guiding rules from the design:
 #
 #  * sequence fns operate on their *last* argument as the Ruby receiver, and a
 #    function argument becomes a Ruby block;
 #  * collection fns are *type-hint aware* (e.g. +conj+ on a vector vs a map);
 #  * arithmetic / comparison lower to Ruby operators.
-module Rouge
+module Cursed
   class Emitter
     # Function-builder names available inside macro bodies (mapped to
-    # +Rouge::FormRuntime+).
+    # +Cursed::FormRuntime+).
     FORM_FNS = %w[list concat seq cons vector gensym symbol type-of as-block].freeze
 
     def form_fn?(name)
@@ -179,7 +179,7 @@ module Rouge
       block = nil
       block_pass = nil
       if fn_form
-        if fn_form.is_a?(Rouge::Symbol) && @env.local?(fn_form.to_s)
+        if fn_form.is_a?(Cursed::Symbol) && @env.local?(fn_form.to_s)
           block_pass = Lit.new(@env.lookup_local(fn_form.to_s).ruby_name)
         elsif fn_form.is_a?(::Symbol) # a keyword: (map :name coll) -> coll.map(&:name)
           block_pass = emit_keyword(fn_form)
@@ -196,21 +196,21 @@ module Rouge
       @env.with_scope do
         names = (1..arity).map { @env.gensym("it") }
         names.each { |n| @env.define_local(n) }
-        arg_syms = names.map { |n| Rouge::Symbol[n.intern] }
-        call = Rouge::Seq::Cons[form, *arg_syms]
+        arg_syms = names.map { |n| Cursed::Symbol[n.intern] }
+        call = Cursed::Seq::Cons[form, *arg_syms]
         BlockFn.new(names.map { |n| @env.lookup_local(n).ruby_name }, [emit(call)])
       end
     end
 
     def fn_literal?(form)
-      (form.is_a?(Rouge::Seq::Cons) || form.is_a?(Rouge::Seq::ISeq)) &&
-        form.to_a[0].is_a?(Rouge::Symbol) &&
+      (form.is_a?(Cursed::Seq::Cons) || form.is_a?(Cursed::Seq::ISeq)) &&
+        form.to_a[0].is_a?(Cursed::Symbol) &&
         %w[fn fn*].include?(form.to_a[0].name_s)
     end
 
     def fn_form_to_block(form)
       a = form.to_a[1..]
-      a = a[1..] if a[0].is_a?(Rouge::Symbol) # optional name
+      a = a[1..] if a[0].is_a?(Cursed::Symbol) # optional name
       return BlockFn.new(["*args"], [Lit.new("nil")]) unless a[0].is_a?(::Array)
 
       @env.with_scope do
@@ -294,7 +294,7 @@ module Rouge
       f = tail[2]
       extra = tail[3..]
       cur = Index.new(emit(m), [emit(k)])
-      call = Rouge::Seq::Cons[f, Rouge::Symbol[:"__cur"], *extra]
+      call = Cursed::Seq::Cons[f, Cursed::Symbol[:"__cur"], *extra]
       @env.with_scope do
         @env.define_local("__cur")
         # Bind current value, then apply f.
@@ -306,10 +306,10 @@ module Rouge
     end
 
     def apply_fn(f, arg_nodes)
-      if f.is_a?(Rouge::Symbol) && core_mapping?(f.name_s) && f.ns.nil?
+      if f.is_a?(Cursed::Symbol) && core_mapping?(f.name_s) && f.ns.nil?
         # Re-route through core using placeholder lits is hard; fall back to call.
         Call.new(nil, @env.munge_method(f.name_s), arg_nodes)
-      elsif f.is_a?(Rouge::Symbol) && @env.local?(f.to_s)
+      elsif f.is_a?(Cursed::Symbol) && @env.local?(f.to_s)
         Call.new(Lit.new(@env.lookup_local(f.to_s).ruby_name), "call", arg_nodes)
       else
         Call.new(nil, @env.munge_method(f.name_s), arg_nodes)
@@ -386,7 +386,7 @@ module Rouge
     end
 
     def type_of(form)
-      t = form.is_a?(Rouge::Symbol) ? hint_type(form) : nil
+      t = form.is_a?(Cursed::Symbol) ? hint_type(form) : nil
       t || infer_type(form)
     end
 

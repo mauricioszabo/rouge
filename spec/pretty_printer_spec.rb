@@ -1,15 +1,15 @@
 require 'spec_helper'
 
-RA = Rouge::RubyAST
+RA = Cursed::RubyAST
 
-describe Rouge::PrettyPrinter do
+describe Cursed::PrettyPrinter do
   Lit = RA::Lit
   Call = RA::Call
   BlockFn = RA::BlockFn
   MethodDef = RA::MethodDef
   HashLit = RA::HashLit
 
-  let(:pp) { Rouge::PrettyPrinter.new }
+  let(:pp) { Cursed::PrettyPrinter.new }
 
   it "indents method bodies with two spaces" do
     node = MethodDef.new("foo", ["a"], [Lit.new("a")])

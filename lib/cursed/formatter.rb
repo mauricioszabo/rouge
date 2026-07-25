@@ -2,7 +2,7 @@
 
 require 'tempfile'
 
-module Rouge
+module Cursed
   # Optional final formatting pass: run Rubocop's autocorrect over the emitted
   # Ruby when Rubocop is available, otherwise return it unchanged.
   module Formatter
@@ -11,7 +11,7 @@ module Rouge
     def rubocop(source)
       return source unless available?
 
-      Tempfile.create(["rouge", ".rb"]) do |file|
+      Tempfile.create(["cursed", ".rb"]) do |file|
         file.write(source)
         file.flush
         system("rubocop", "-A", "--no-color", file.path,

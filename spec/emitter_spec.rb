@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Rouge::Emitter do
+describe Cursed::Emitter do
   describe "literals" do
     it { expect(emit("42")).to eq "42" }
     it { expect(emit("1.5")).to eq "1.5" }

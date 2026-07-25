@@ -1,46 +1,46 @@
-# Rouge
+# Cursed
 
 **A Clojure-flavoured language that transpiles to readable Ruby.**
 
-Rouge reads Clojure-style source and emits clean, indented, Rubocop-friendly
+Cursed reads Clojure-style source and emits clean, indented, Rubocop-friendly
 Ruby. It is a **source-to-source transpiler**, not an interpreter — the goal is
 to remove boilerplate from Ruby code: write logic (and especially *macros*)
-once in Clojure, and let Rouge generate the repetitive Ruby.
+once in Clojure, and let Cursed generate the repetitive Ruby.
 
 > This is a ground-up rewrite. The original Rouge (a Clojure *interpreter* in
-> Ruby by Yuki Izumi) lives on in this project's reader, which Rouge reuses.
+> Ruby by Yuki Izumi) lives on in this project's reader, which Cursed reuses.
 
 ## Quick start
 
 ```bash
 # Transpile a file (writes foo.rb next to foo.clj)
-bin/rougec foo.clj
+bin/cursedc foo.clj
 
 # ...or print to stdout
-bin/rougec foo.clj --stdout
+bin/cursedc foo.clj --stdout
 
 # Run Rubocop's autocorrect over the output (when rubocop is installed)
-bin/rougec foo.clj --rubocop
+bin/cursedc foo.clj --rubocop
 
 # Interpret (transpile-then-eval) and print the result
-bin/rougec -e '(reduce + (map inc [1 2 3]))'   # => 9
+bin/cursedc -e '(reduce + (map inc [1 2 3]))'   # => 9
 
 # Interactive REPL (type :ruby to toggle showing emitted Ruby)
-bin/rougec --repl
+bin/cursedc --repl
 ```
 
 From Ruby:
 
 ```ruby
-require 'rouge'
-Rouge.transpile("(defn greet [name] (str \"hi \" name))")
+require 'cursed'
+Cursed.transpile("(defn greet [name] (str \"hi \" name))")
 # => "def greet(name)\n  \"hi #{name}\"\nend\n"
-Rouge.eval("(+ 1 2)")  # => 3
+Cursed.eval("(+ 1 2)")  # => 3
 ```
 
 ## How it maps
 
-| Rouge                              | Ruby                              |
+| Cursed                             | Ruby                              |
 | ---------------------------------- | -------------------------------- |
 | `(ns my.app.user)`                 | `module My; module App; class User` |
 | `^{:extends Base}` on the ns       | `class User < Base`              |
@@ -132,7 +132,7 @@ special forms inside the namespace body:
 
 ## Interpreter / nREPL
 
-Running Rouge is **transpile-then-eval** (`Rouge::Interpreter`) — there is no
+Running Cursed is **transpile-then-eval** (`Cursed::Interpreter`) — there is no
 separate evaluator, so a macro defined in a session is immediately usable by
 later forms. This is the seed for a future nREPL server, which would simply
 delegate eval ops to `Interpreter#eval_str`.

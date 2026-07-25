@@ -3,7 +3,7 @@
 # Wrapper types used by the reader to represent unquote (`~`) and
 # unquote-splice (`~@`) forms inside a syntax-quote.
 [:Dequote, :Splice].each do |name|
-  Rouge.const_set name, Class.new {
+  Cursed.const_set name, Class.new {
     attr_reader :inner
 
     def initialize(inner)
@@ -28,7 +28,7 @@ end
 # that the emitter should lower to a Ruby *block* (rather than a positional
 # argument).  +arity+ is the number of block parameters to generate when the
 # function needs to be wrapped (e.g. +reduce+ wants a 2-ary block).
-module Rouge
+module Cursed
   class BlockArg
     attr_reader :inner, :arity
 

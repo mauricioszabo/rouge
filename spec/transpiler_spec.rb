@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe Rouge::Transpiler do
+describe Cursed::Transpiler do
   describe "the sample fixture" do
     let(:ruby) { transpile(File.read(relative_to_spec("fixtures/sample.clj"))) }
 

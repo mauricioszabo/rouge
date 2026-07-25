@@ -1,4 +1,4 @@
-; The Rouge prelude: core sequence operations expressed with the type-dispatched
+; The Cursed prelude: core sequence operations expressed with the type-dispatched
 ; syntax system (defsyntax / defimpl).  Loaded before user code, so an
 ; unqualified (map ...) / (reduce ...) lowers through these impls and a user can
 ; extend them for their own types with another (defimpl ...).

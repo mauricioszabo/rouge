@@ -1,10 +1,10 @@
 # encoding: utf-8
 
 # A small intermediate representation for the Ruby code we emit.  The emitter
-# produces trees of these nodes; +Rouge::PrettyPrinter+ turns them into
+# produces trees of these nodes; +Cursed::PrettyPrinter+ turns them into
 # indented, Rubocop-friendly Ruby source.  Keeping rendering out of the nodes
 # means all formatting decisions live in one place.
-module Rouge
+module Cursed
   module RubyAST
     class Node; end
 

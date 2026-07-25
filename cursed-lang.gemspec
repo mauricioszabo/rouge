@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-require File.expand_path('../lib/rouge/version', __FILE__)
+require File.expand_path('../lib/cursed/version', __FILE__)
 
 Gem::Specification.new do |gem|
   gem.authors       = ["Yuki Izumi", "Maurício Szabo"]
@@ -16,9 +16,9 @@ Gem::Specification.new do |gem|
   gem.files         = `git ls-files`.split($\)
   gem.executables   = gem.files.grep(%r{^bin/}).map { |f| File.basename(f) }
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
-  gem.name          = "rouge-lang"
+  gem.name          = "cursed-lang"
   gem.require_paths = ["lib"]
-  gem.version       = Rouge::VERSION
+  gem.version       = Cursed::VERSION
   gem.required_ruby_version = ">= 3.0"
 end
 

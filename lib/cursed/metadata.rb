@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module Rouge::Metadata
+module Cursed::Metadata
   class InvalidMetadataError < StandardError; end
 
   def meta

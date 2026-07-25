@@ -1,25 +1,25 @@
 # encoding: utf-8
 
-require 'rouge/ruby_ast'
-require 'rouge/env'
+require 'cursed/ruby_ast'
+require 'cursed/env'
 require 'set'
 
-module Rouge
-  # Walks reader forms and produces a +Rouge::RubyAST+ tree.  Special forms,
+module Cursed
+  # Walks reader forms and produces a +Cursed::RubyAST+ tree.  Special forms,
   # the core-fn mapping table and the macro engine are mixed in from
   # +special_forms.rb+, +core.rb+ and +macro.rb+ (which reopen this class).
   class Emitter
-    include Rouge::RubyAST
+    include Cursed::RubyAST
 
     class Error < StandardError; end
 
     # Namespaces whose qualified calls route through the core mapping table.
-    CORE_NS = %w[clojure.core clojure.string clojure.set rouge.core].freeze
+    CORE_NS = %w[clojure.core clojure.string clojure.set cursed.core].freeze
 
     attr_reader :env
     attr_accessor :mode, :loader
 
-    def initialize(env = Rouge::Env.new)
+    def initialize(env = Cursed::Env.new)
       @env = env
       @mode = :code # :code for ordinary output, :macro inside macro bodies
       @loader = nil
@@ -28,7 +28,7 @@ module Rouge
     # Emit a single form as a Ruby *expression* node.
     def emit(form)
       case form
-      when Rouge::Seq::Cons, Rouge::Seq::ISeq
+      when Cursed::Seq::Cons, Cursed::Seq::ISeq
         emit_list(form.to_a)
       when ::Array
         ArrayLit.new(form.map { |e| emit(e) })
@@ -37,7 +37,7 @@ module Rouge
       when ::Set
         Call.new(ConstPath.new("Set"), "new",
                  [ArrayLit.new(form.map { |e| emit(e) })])
-      when Rouge::Symbol
+      when Cursed::Symbol
         emit_symbol(form)
       when ::Symbol
         emit_keyword(form)
@@ -57,7 +57,7 @@ module Rouge
         Lit.new("false")
       when nil
         Lit.new("nil")
-      when Rouge::BlockArg
+      when Cursed::BlockArg
         raise Error, "a ^:block argument can only be spliced into call position"
       else
         raise Error, "can't emit #{form.inspect} (#{form.class})"
@@ -153,7 +153,7 @@ module Rouge
       head = arr[0]
       tail = arr[1..]
 
-      unless head.is_a?(Rouge::Symbol)
+      unless head.is_a?(Cursed::Symbol)
         # ((f) args) — call the result.
         return Call.new(emit(head), "call", emit_args(tail))
       end
@@ -174,7 +174,7 @@ module Rouge
       # Inside macro bodies, the form-builder fns map to the runtime that
       # constructs reader data (Cons/Symbol/etc).
       if @mode == :macro && head.ns.nil? && form_fn?(name) && !@env.local?(full)
-        return Call.new(ConstPath.new("Rouge::FormRuntime"),
+        return Call.new(ConstPath.new("Cursed::FormRuntime"),
                         @env.munge_method(name), emit_args(tail))
       end
 
@@ -270,10 +270,10 @@ module Rouge
                emit_args(args), block_pass: block_pass)
     end
 
-    # Handle a trailing +| f+ marker (Rouge's "pass as block" syntax) inside an
+    # Handle a trailing +| f+ marker (Cursed's "pass as block" syntax) inside an
     # interop/call argument list.  Returns [block_pass_node_or_nil, args].
     def extract_block_pass(args)
-      idx = args.find_index { |a| a.is_a?(Rouge::Symbol) && a.name_s == "|" }
+      idx = args.find_index { |a| a.is_a?(Cursed::Symbol) && a.name_s == "|" }
       return [nil, args] unless idx
 
       bp = args[idx + 1]
@@ -284,14 +284,14 @@ module Rouge
     # (spliced by a +defimpl+ +^:block+ param) and the +| f+ marker.  Returns
     # [block_node_or_nil, block_pass_node_or_nil, remaining_arg_forms].
     def extract_block(args)
-      bidx = args.find_index { |a| a.is_a?(Rouge::BlockArg) }
+      bidx = args.find_index { |a| a.is_a?(Cursed::BlockArg) }
       if bidx
         ba = args[bidx]
         block, block_pass = coerce_block(ba.inner, ba.arity)
         return [block, block_pass, args[0...bidx] + args[(bidx + 1)..]]
       end
 
-      pidx = args.find_index { |a| a.is_a?(Rouge::Symbol) && a.name_s == "|" }
+      pidx = args.find_index { |a| a.is_a?(Cursed::Symbol) && a.name_s == "|" }
       return [nil, emit(args[pidx + 1]), args[0...pidx]] if pidx
 
       [nil, nil, args]
@@ -303,7 +303,7 @@ module Rouge
     def coerce_block(form, arity)
       # A multi-param block (e.g. mapping over zipped tuples) must destructure,
       # so only pass-through (+&local+ / +&:kw+) when a single param suffices.
-      if arity <= 1 && form.is_a?(Rouge::Symbol) && @env.local?(form.to_s)
+      if arity <= 1 && form.is_a?(Cursed::Symbol) && @env.local?(form.to_s)
         [nil, Lit.new(@env.lookup_local(form.to_s).ruby_name)]
       elsif arity <= 1 && form.is_a?(::Symbol)
         [nil, emit_keyword(form)]
@@ -344,15 +344,15 @@ module Rouge
       when ::Integer then :int
       when ::Float then :float
       when true, false then :bool
-      when Rouge::Symbol then @env.local_type(form.to_s)
-      when Rouge::Seq::Cons, Rouge::Seq::ISeq
+      when Cursed::Symbol then @env.local_type(form.to_s)
+      when Cursed::Seq::Cons, Cursed::Seq::ISeq
         h = form.to_a[0]
         infer_call_type(h)
       end
     end
 
     def infer_call_type(head)
-      return nil unless head.is_a?(Rouge::Symbol) && head.ns.nil?
+      return nil unless head.is_a?(Cursed::Symbol) && head.ns.nil?
 
       case head.name_s
       when "assoc", "dissoc", "merge", "hash-map", "update", "select-keys",

@@ -1,11 +1,11 @@
 # encoding: utf-8
 
-module Rouge
+module Cursed
   # Orchestrates the pipeline: read forms, expand macros + emit Ruby IR, pretty
   # print, optionally run Rubocop.  Top-level +(ns ...)+ forms open a class (the
   # following top-level forms become its body).
   class Transpiler
-    include Rouge::RubyAST
+    include Cursed::RubyAST
 
     def self.transpile(source, rubocop: false)
       new.transpile(source, rubocop: rubocop)
@@ -13,32 +13,32 @@ module Rouge
 
     attr_reader :env, :emitter, :config, :loader
 
-    def initialize(env = Rouge::Env.new, config: nil, mode: :compile)
+    def initialize(env = Cursed::Env.new, config: nil, mode: :compile)
       @env = env
-      @emitter = Rouge::Emitter.new(@env)
-      @config = config || Rouge::Config.new(Dir.pwd, {})
+      @emitter = Cursed::Emitter.new(@env)
+      @config = config || Cursed::Config.new(Dir.pwd, {})
       @mode = mode
-      @loader = Rouge::Loader.new(@config, mode: @mode, env: @env)
-      @loader.load_rouge_source = method(:macro_load_file)
+      @loader = Cursed::Loader.new(@config, mode: @mode, env: @env)
+      @loader.load_cursed_source = method(:macro_load_file)
       @emitter.loader = @loader
     end
 
     def transpile(source, rubocop: false)
-      ruby = Rouge::PrettyPrinter.print_all(process_forms(Rouge::Reader.read_all(source)))
-      rubocop ? Rouge::Formatter.rubocop(ruby) : ruby
+      ruby = Cursed::PrettyPrinter.print_all(process_forms(Cursed::Reader.read_all(source)))
+      rubocop ? Cursed::Formatter.rubocop(ruby) : ruby
     end
 
     # Public: turn a list of already-read forms into Ruby (used by the Compiler).
     def transpile_forms(forms, rubocop: false)
-      ruby = Rouge::PrettyPrinter.print_all(process_forms(forms))
-      rubocop ? Rouge::Formatter.rubocop(ruby) : ruby
+      ruby = Cursed::PrettyPrinter.print_all(process_forms(forms))
+      rubocop ? Cursed::Formatter.rubocop(ruby) : ruby
     end
 
     # Compile-mode dependency load: run a dep's forms through the shared emitter
     # so its macros/syntaxes register, discarding the emitted output (the dep is
     # compiled to its own file).
     def macro_load_file(path)
-      process_forms(Rouge::Reader.read_all(File.read(path)))
+      process_forms(Cursed::Reader.read_all(File.read(path)))
       nil
     end
 
@@ -68,15 +68,15 @@ module Rouge
     end
 
     def ns_form?(form)
-      list?(form) && form.to_a[0].is_a?(Rouge::Symbol) && form.to_a[0].name_s == "ns"
+      list?(form) && form.to_a[0].is_a?(Cursed::Symbol) && form.to_a[0].name_s == "ns"
     end
 
     def list?(form)
-      form.is_a?(Rouge::Seq::Cons) || form.is_a?(Rouge::Seq::ISeq)
+      form.is_a?(Cursed::Seq::Cons) || form.is_a?(Cursed::Seq::ISeq)
     end
 
     def build_namespace(ns_form, body_forms)
-      nsf = Rouge::NsForm.parse(ns_form)
+      nsf = Cursed::NsForm.parse(ns_form)
       name_sym = nsf.name_sym
       meta = nsf.meta
 
@@ -128,7 +128,7 @@ module Rouge
 
     def require_node(spec, res)
       case res.kind
-      when :rouge
+      when :cursed
         from = @config.output_path_for_ns(@env.current_ns)
         to = @config.output_path_for_ns(spec.ns)
         Lit.new(%(require_relative "#{@config.require_relative_between(from, to)}"))

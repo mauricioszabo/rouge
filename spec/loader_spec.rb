@@ -2,26 +2,26 @@ require 'spec_helper'
 require 'tmpdir'
 require 'fileutils'
 
-describe Rouge::Loader do
+describe Cursed::Loader do
   around do |example|
     Dir.mktmpdir do |dir|
       @dir = dir
       FileUtils.mkdir_p(File.join(dir, "src", "util"))
       File.write(File.join(dir, "src", "util", "math.rg"), "(ns util.math)")
       File.write(File.join(dir, "src", "legacy.rb"), "module Legacy; end")
-      @config = Rouge::Config.new(dir, { :"source-roots" => ["src"], :"output-root" => "lib" })
+      @config = Cursed::Config.new(dir, { :"source-roots" => ["src"], :"output-root" => "lib" })
       example.run
     end
   end
 
   def loader(mode: :compile)
-    Rouge::Loader.new(@config, mode: mode, env: Rouge::Env.new)
+    Cursed::Loader.new(@config, mode: mode, env: Cursed::Env.new)
   end
 
   describe "#resolve" do
-    it "finds a Rouge source on the path" do
+    it "finds a Cursed source on the path" do
       res = loader.resolve("util.math")
-      expect(res.kind).to eq :rouge
+      expect(res.kind).to eq :cursed
       expect(res.path).to eq File.join(@dir, "src", "util", "math.rg")
     end
 

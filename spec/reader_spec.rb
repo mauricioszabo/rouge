@@ -1,10 +1,10 @@
 require 'spec_helper'
 
-# The reader is reused from the original Rouge project; these specs cover the
+# The reader is reused from the original Cursed project; these specs cover the
 # slimmed-down API (Reader.read_all) the transpiler relies on.
-describe Rouge::Reader do
+describe Cursed::Reader do
   def read_one(s)
-    Rouge::Reader.read_all(s).first
+    Cursed::Reader.read_all(s).first
   end
 
   it "reads scalars" do
@@ -18,7 +18,7 @@ describe Rouge::Reader do
 
   it "reads symbols with namespaces" do
     sym = read_one("foo.bar/baz")
-    expect(sym).to be_a(Rouge::Symbol)
+    expect(sym).to be_a(Cursed::Symbol)
     expect(sym.ns_s).to eq "foo.bar"
     expect(sym.name_s).to eq "baz"
   end
@@ -26,7 +26,7 @@ describe Rouge::Reader do
   it "reads collections" do
     expect(read_one("[1 2 3]")).to eq [1, 2, 3]
     expect(read_one("{:a 1}")).to eq({ a: 1 })
-    expect(read_one("(a b c)")).to be_a(Rouge::Seq::Cons)
+    expect(read_one("(a b c)")).to be_a(Cursed::Seq::Cons)
   end
 
   it "reads metadata onto symbols" do
@@ -36,10 +36,10 @@ describe Rouge::Reader do
 
   it "expands #( ) into an fn form" do
     form = read_one("#(+ % 1)").to_a
-    expect(form[0]).to eq Rouge::Symbol[:fn]
+    expect(form[0]).to eq Cursed::Symbol[:fn]
   end
 
   it "reads every top-level form" do
-    expect(Rouge::Reader.read_all("(a) (b) (c)").length).to eq 3
+    expect(Cursed::Reader.read_all("(a) (b) (c)").length).to eq 3
   end
 end

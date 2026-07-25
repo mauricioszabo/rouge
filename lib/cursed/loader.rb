@@ -1,30 +1,30 @@
 # encoding: utf-8
 
-module Rouge
+module Cursed
   # Resolves a namespace reference to a file (or gem) and loads it, in one of two
   # modes:
   #
-  #  * +:dev+   — used by the Interpreter / nREPL.  A Rouge dep is transpiled and
+  #  * +:dev+   — used by the Interpreter / nREPL.  A Cursed dep is transpiled and
   #    evaluated into the *live session* so its defs/macros/syntaxes are usable
   #    immediately; a Ruby file or gem is +require+d into the process.
-  #  * +:compile+ — used by the project Compiler.  A Rouge dep's forms are
+  #  * +:compile+ — used by the project Compiler.  A Cursed dep's forms are
   #    processed through the shared compiler Env so its macros/syntaxes register
   #    (no output inlined); the requiring file later emits a +require_relative+
   #    to the dep's *compiled* file.  Ruby/gem deps emit a runtime +require+.
   #
-  # The driver supplies +load_rouge_source+: a callback that processes a resolved
-  # Rouge file in the way that mode demands (eval vs. macro-register).  The Loader
+  # The driver supplies +load_cursed_source+: a callback that processes a resolved
+  # Cursed file in the way that mode demands (eval vs. macro-register).  The Loader
   # owns resolution, the loaded-set and cycle detection; it does NOT own the Env.
   class Loader
     class CircularRequire < StandardError; end
 
     Resolution = Struct.new(:kind, :path, :require_name) do
-      def rouge? = kind == :rouge
+      def cursed? = kind == :cursed
       def ruby?  = kind == :ruby
       def gem?   = kind == :gem
     end
 
-    attr_accessor :load_rouge_source
+    attr_accessor :load_cursed_source
 
     def initialize(config, mode:, env:)
       @config = config
@@ -49,7 +49,7 @@ module Rouge
       return res if @loaded.key?(spec.ns)
 
       case res.kind
-      when :rouge      then load_rouge(spec.ns, res)
+      when :cursed      then load_cursed(spec.ns, res)
       when :ruby, :gem then load_ruby(res)
       end
       @loaded[spec.ns] = res
@@ -59,14 +59,14 @@ module Rouge
     # Record that a namespace has already been compiled (by the project
     # Compiler), so a later dependent's +:require+ won't re-macro-load it.
     def note_compiled(ns_string, path)
-      @loaded[ns_string] = Resolution.new(:rouge, path, nil)
+      @loaded[ns_string] = Resolution.new(:cursed, path, nil)
     end
 
     # The string a compiled file should pass to +require_relative+/+require+ to
     # load this dependency at runtime, given the requiring file's output path.
     def runtime_require(res, from_output_path)
       case res.kind
-      when :rouge
+      when :cursed
         ["require_relative", @config.require_relative_between(from_output_path,
                                                               @config.output_path_for(res.path))]
       when :ruby
@@ -78,15 +78,15 @@ module Rouge
 
     private
 
-    def load_rouge(ns_string, res)
+    def load_cursed(ns_string, res)
       raise CircularRequire, "circular require: #{(@loading + [ns_string]).join(' -> ')}" \
         if @loading.include?(ns_string)
-      raise "no Rouge loader configured" unless @load_rouge_source
+      raise "no Cursed loader configured" unless @load_cursed_source
 
       @loading.push(ns_string)
       snapshot = @env.ns_snapshot
       begin
-        @load_rouge_source.call(res.path)
+        @load_cursed_source.call(res.path)
       ensure
         @env.restore_ns(snapshot)
         @loading.pop
@@ -102,9 +102,9 @@ module Rouge
     def probe(ns_string)
       rel = ns_string.tr(".", File::SEPARATOR)
       @config.source_roots.each do |root|
-        Config::ROUGE_EXTS.each do |ext|
+        Config::CURSED_EXTS.each do |ext|
           path = File.join(root, rel + ext)
-          return Resolution.new(:rouge, path, nil) if File.file?(path)
+          return Resolution.new(:cursed, path, nil) if File.file?(path)
         end
         rb = File.join(root, rel + ".rb")
         return Resolution.new(:ruby, rb, nil) if File.file?(rb)

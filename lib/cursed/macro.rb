@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-# The macro engine.  Reopens +Rouge::Emitter+.
+# The macro engine.  Reopens +Cursed::Emitter+.
 #
 # A +defmacro+ transpiles its body (in +:macro+ mode, so syntax-quote /
 # +list+ / +concat+ build reader data) into a Ruby lambda, evaluates that
@@ -8,7 +8,7 @@
 # with the *unevaluated argument forms* and the returned form is transpiled in
 # its place.  Because expansion is plain Ruby, macros can read files, the
 # environment, or any data while expanding.
-module Rouge
+module Cursed
   class Emitter
     def emit_defmacro(tail)
       name_sym = tail[0]

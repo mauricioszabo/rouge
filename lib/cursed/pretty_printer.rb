@@ -1,16 +1,16 @@
 # encoding: utf-8
 
-require 'rouge/ruby_ast'
+require 'cursed/ruby_ast'
 
-module Rouge
-  # Renders a +Rouge::RubyAST+ tree into indented, Rubocop-friendly Ruby
+module Cursed
+  # Renders a +Cursed::RubyAST+ tree into indented, Rubocop-friendly Ruby
   # source.  All whitespace / layout decisions live here.
   #
   # The core contract of +render(node, level)+ is: the *first* line of the
   # returned string carries no leading indentation (the caller positions it);
   # any continuation lines are indented relative to +level+.
   class PrettyPrinter
-    include Rouge::RubyAST
+    include Cursed::RubyAST
 
     INDENT = 2
     MAX_WIDTH = 96

@@ -2,8 +2,8 @@
 
 require 'fileutils'
 
-module Rouge
-  # Ahead-of-time project compiler.  Discovers every Rouge source under the
+module Cursed
+  # Ahead-of-time project compiler.  Discovers every Cursed source under the
   # configured source roots, builds a dependency graph from each file's
   # +(ns ... (:require ...))+, compiles in topological order through ONE shared
   # Env (so a dependency's macros/syntaxes are registered before its dependents
@@ -11,14 +11,14 @@ module Rouge
   #
   # The emitted Ruby is standalone: macros/syntaxes have fully expanded and the
   # only cross-file links are ordinary +require_relative+/+require+ statements —
-  # no Rouge runtime is needed to run the result.
+  # no Cursed runtime is needed to run the result.
   class Compiler
     class CircularDependency < StandardError; end
 
-    def initialize(config = Rouge::Config.load)
+    def initialize(config = Cursed::Config.load)
       @config = config
-      @env = Rouge::Env.new
-      @transpiler = Rouge::Transpiler.new(@env, config: @config, mode: :compile)
+      @env = Cursed::Env.new
+      @transpiler = Cursed::Transpiler.new(@env, config: @config, mode: :compile)
       @loader = @transpiler.loader
     end
 
@@ -32,7 +32,7 @@ module Rouge
 
     def source_files
       @config.source_roots.flat_map do |root|
-        Config::ROUGE_EXTS.flat_map { |ext| Dir.glob(File.join(root, "**", "*#{ext}")) }
+        Config::CURSED_EXTS.flat_map { |ext| Dir.glob(File.join(root, "**", "*#{ext}")) }
       end.uniq
     end
 
@@ -40,12 +40,12 @@ module Rouge
     def build_graph(files)
       graph = {}
       files.each do |path|
-        forms = Rouge::Reader.read_all(File.read(path))
+        forms = Cursed::Reader.read_all(File.read(path))
         ns_form = forms.find { |f| ns_form?(f) }
         next unless ns_form
 
-        nsf = Rouge::NsForm.parse(ns_form)
-        deps = nsf.requires.select { |s| @loader.resolve(s.ns).rouge? }.map(&:ns)
+        nsf = Cursed::NsForm.parse(ns_form)
+        deps = nsf.requires.select { |s| @loader.resolve(s.ns).cursed? }.map(&:ns)
         graph[nsf.name] = { ns: nsf.name, path: path, deps: deps, forms: forms }
       end
       graph
@@ -79,8 +79,8 @@ module Rouge
     end
 
     def ns_form?(form)
-      (form.is_a?(Rouge::Seq::Cons) || form.is_a?(Rouge::Seq::ISeq)) &&
-        form.to_a[0].is_a?(Rouge::Symbol) && form.to_a[0].name_s == "ns"
+      (form.is_a?(Cursed::Seq::Cons) || form.is_a?(Cursed::Seq::ISeq)) &&
+        form.to_a[0].is_a?(Cursed::Symbol) && form.to_a[0].name_s == "ns"
     end
   end
 end

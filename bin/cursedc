@@ -3,14 +3,14 @@
 
 $LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
 
-require 'rouge'
+require 'cursed'
 require 'optparse'
 
 options = { rubocop: false, mode: :file }
 output = nil
 
 parser = OptionParser.new do |o|
-  o.banner = "Usage: rougec [options] [file.clj]"
+  o.banner = "Usage: cursedc [options] [file.clj]"
   o.on("-o", "--output FILE", "Write Ruby to FILE (default: alongside input)") { |f| output = f }
   o.on("--stdout", "Write transpiled Ruby to stdout") { options[:mode] = :stdout }
   o.on("--rubocop", "Run `rubocop -A` over the output when available") { options[:rubocop] = true }
@@ -23,7 +23,7 @@ parser = OptionParser.new do |o|
     options[:file] = f
   end
   o.on("--repl", "Start an interactive transpile-then-eval REPL") { options[:mode] = :repl }
-  o.on("--compile", "Compile the whole project (per rouge.edn) to plain Ruby") { options[:mode] = :compile }
+  o.on("--compile", "Compile the whole project (per cursed.edn) to plain Ruby") { options[:mode] = :compile }
   o.on("--nrepl [PORT]", Integer, "Start a bencode nREPL server (default port 7888)") do |p|
     options[:mode] = :nrepl
     options[:port] = p || 7888
@@ -37,15 +37,15 @@ parser.parse!
 
 case options[:mode]
 when :eval
-  puts Rouge::Interpreter.new.eval_str(options[:code]).inspect
+  puts Cursed::Interpreter.new.eval_str(options[:code]).inspect
 when :run
-  puts Rouge::Interpreter.new.eval_str(File.read(options[:file])).inspect
+  puts Cursed::Interpreter.new.eval_str(File.read(options[:file])).inspect
 when :repl
   require 'readline'
-  interp = Rouge::Interpreter.new
+  interp = Cursed::Interpreter.new
   show_ruby = false
-  puts "Rouge REPL — transpile-then-eval. Type :ruby to toggle showing emitted Ruby, :quit to exit."
-  while (line = Readline.readline("rouge=> ", true))
+  puts "Cursed REPL — transpile-then-eval. Type :ruby to toggle showing emitted Ruby, :quit to exit."
+  while (line = Readline.readline("cursed=> ", true))
     line = line.strip
     next if line.empty?
     break if %w[:quit :exit].include?(line)
@@ -57,7 +57,7 @@ when :repl
     end
 
     begin
-      Rouge::Reader.read_all(line).each do |form|
+      Cursed::Reader.read_all(line).each do |form|
         puts interp.transpile_form(form) if show_ruby
         p interp.eval_form(form)
       end
@@ -66,21 +66,21 @@ when :repl
     end
   end
 when :compile
-  written = Rouge::Compiler.new(Rouge::Config.load(Dir.pwd)).compile_all
+  written = Cursed::Compiler.new(Cursed::Config.load(Dir.pwd)).compile_all
   written.each { |w| warn "Compiled #{w}" }
   warn "Compiled #{written.length} file(s)."
 when :nrepl
-  require 'rouge/nrepl/server'
-  Rouge::Nrepl::Server.new(config: Rouge::Config.load(Dir.pwd), port: options[:port]).start
+  require 'cursed/nrepl/server'
+  Cursed::Nrepl::Server.new(config: Cursed::Config.load(Dir.pwd), port: options[:port]).start
 when :stdout
   source = ARGF.read
-  print Rouge::Transpiler.transpile(source, rubocop: options[:rubocop])
+  print Cursed::Transpiler.transpile(source, rubocop: options[:rubocop])
 else # :file
   input = ARGV.first
   abort parser.to_s if input.nil?
 
-  ruby = Rouge::Transpiler.transpile(File.read(input), rubocop: options[:rubocop])
-  output ||= input.sub(/\.(clj|rg|rouge)\z/, "") + ".rb"
+  ruby = Cursed::Transpiler.transpile(File.read(input), rubocop: options[:rubocop])
+  output ||= input.sub(/\.(clj|rg|cursed)\z/, "") + ".rb"
   File.write(output, ruby)
   warn "Wrote #{output}"
 end

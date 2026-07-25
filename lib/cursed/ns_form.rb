@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-module Rouge
+module Cursed
   # Parses the clauses of an +(ns ...)+ form into plain data the transpiler /
   # interpreter / loader can act on:
   #
@@ -9,7 +9,7 @@ module Rouge
   #               [util.math :as m])
   #     (:import [json]))
   #
-  # +:require+ resolves uniformly to a Rouge namespace, a local Ruby file, or a
+  # +:require+ resolves uniformly to a Cursed namespace, a local Ruby file, or a
   # gem (decided later by the Loader).  +:import+ is the raw-gem escape hatch.
   class NsForm
     # A single libspec.  +ns+ is the dotted namespace string; +as+ an alias;
@@ -60,7 +60,7 @@ module Rouge
     def clause_keyword(head)
       case head
       when ::Symbol then head
-      when Rouge::Symbol then head.name_s.to_sym
+      when Cursed::Symbol then head.name_s.to_sym
       end
     end
 
@@ -81,7 +81,7 @@ module Rouge
     end
 
     def list?(form)
-      form.is_a?(Rouge::Seq::Cons) || form.is_a?(Rouge::Seq::ISeq)
+      form.is_a?(Cursed::Seq::Cons) || form.is_a?(Cursed::Seq::ISeq)
     end
   end
 end

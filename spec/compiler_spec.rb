@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'tmpdir'
 require 'fileutils'
 
-describe Rouge::Compiler do
+describe Cursed::Compiler do
   def write(dir, rel, body)
     path = File.join(dir, rel)
     FileUtils.mkdir_p(File.dirname(path))
@@ -14,11 +14,11 @@ describe Rouge::Compiler do
   end
 
   def compile!
-    Rouge::Compiler.new(Rouge::Config.load(@dir)).compile_all
+    Cursed::Compiler.new(Cursed::Config.load(@dir)).compile_all
   end
 
   it "compiles a multi-file project in dependency order to plain Ruby" do
-    write(@dir, "rouge.edn", '{:source-roots ["src"] :output-root "lib"}')
+    write(@dir, "cursed.edn", '{:source-roots ["src"] :output-root "lib"}')
     write(@dir, "src/util/math.rg", <<~CLJ)
       (ns ^:module util.math)
       (defmacro double [x] `(* 2 ~x))
@@ -41,8 +41,8 @@ describe Rouge::Compiler do
     expect(app).to include("2 * 5")                  # refer'd macro expanded at compile time
   end
 
-  it "produces output free of any Rouge runtime reference" do
-    write(@dir, "rouge.edn", '{:source-roots ["src"] :output-root "lib"}')
+  it "produces output free of any Cursed runtime reference" do
+    write(@dir, "cursed.edn", '{:source-roots ["src"] :output-root "lib"}')
     write(@dir, "src/util/math.rg", "(ns ^:module util.math)\n(defn square [n] (* n n))")
     write(@dir, "src/app.rg", <<~CLJ)
       (ns app (:require [util.math :as m]))
@@ -50,12 +50,12 @@ describe Rouge::Compiler do
     CLJ
     compile!
     Dir.glob(File.join(@dir, "lib", "**", "*.rb")).each do |f|
-      expect(File.read(f)).not_to include("Rouge::")
+      expect(File.read(f)).not_to include("Cursed::")
     end
   end
 
-  it "runs the compiled output under plain ruby (no Rouge loaded)" do
-    write(@dir, "rouge.edn", '{:source-roots ["src"] :output-root "lib"}')
+  it "runs the compiled output under plain ruby (no Cursed loaded)" do
+    write(@dir, "cursed.edn", '{:source-roots ["src"] :output-root "lib"}')
     write(@dir, "src/util/math.rg", "(ns ^:module util.math)\n(defn square [n] (* n n))")
     write(@dir, "src/app.rg", <<~CLJ)
       (ns app (:require [util.math :as m :refer [square]]))
@@ -69,10 +69,10 @@ describe Rouge::Compiler do
   end
 
   it "raises on a circular dependency" do
-    write(@dir, "rouge.edn", '{:source-roots ["src"] :output-root "lib"}')
+    write(@dir, "cursed.edn", '{:source-roots ["src"] :output-root "lib"}')
     write(@dir, "src/a.rg", "(ns a (:require [b :as b]))")
     write(@dir, "src/b.rg", "(ns b (:require [a :as a]))")
-    expect { compile! }.to raise_error(Rouge::Compiler::CircularDependency)
+    expect { compile! }.to raise_error(Cursed::Compiler::CircularDependency)
   end
 end
 
